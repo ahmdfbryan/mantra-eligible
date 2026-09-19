@@ -29,7 +29,7 @@ function buildProgressBar(current, total, length = 14) {
 
 function authorConfig(member) {
   return {
-    name: `${config.community.name} - Community Verification`,
+    name: `${config.community.name} - Verification`,
     iconURL: member?.groupIconUrl || undefined,
     url: config.community.url,
   };
