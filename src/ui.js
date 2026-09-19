@@ -73,13 +73,6 @@ function buildEligibilityEmbed({ member, eligibilityDays, requestedBy }) {
         name: '📈 Progress',
         value: buildProgressBar(joinedDays, eligibilityDays),
         inline: false,
-      },
-      {
-        name: 'Status',
-        value: isEligible
-          ? `✅ **Eligible** — sudah memenuhi syarat ${eligibilityDays} hari bergabung.`
-          : `⏳ **Belum Eligible** — kurang **${eligibilityDays - joinedDays} hari** lagi.`,
-        inline: false,
       }
     )
     .setTimestamp(now)
