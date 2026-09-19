@@ -55,7 +55,13 @@ function buildEligibilityEmbed({ member, eligibilityDays, requestedBy }) {
     .setURL(member.profileUrl)
     .setColor(isEligible ? config.colors.eligible : config.colors.pending)
     .setThumbnail(member.avatarUrl || null)
-    .setDescription(`🆔 ID Roblox: \`${member.id}\``)
+    .setDescription(
+      [
+        `👤 Username: \`${member.username}\``,
+        `🏷️ Display Name: \`${member.displayName}\``,
+        `🆔 ID Roblox: \`${member.id}\``,
+      ].join('\n')
+    )
     .addFields(
       SPACER,
       {
