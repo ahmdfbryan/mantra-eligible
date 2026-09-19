@@ -1,6 +1,6 @@
 const { Client, GatewayIntentBits } = require('discord.js');
 const config = require('./config');
-const { lookupMember, RobloxApiError } = require('./roblox');
+const { lookupMember, getGroupIconUrl, RobloxApiError } = require('./roblox');
 const {
   buildEligibilityEmbed,
   buildNotMemberEmbed,
@@ -53,7 +53,10 @@ client.on('interactionCreate', async (interaction) => {
       }
 
       if (error.code === 'NOT_MEMBER') {
-        await interaction.editReply({ embeds: [buildNotMemberEmbed({ username, requestedBy })] });
+        const groupIconUrl = await getGroupIconUrl(config.robloxGroupId).catch(() => null);
+        await interaction.editReply({
+          embeds: [buildNotMemberEmbed({ username, groupIconUrl, requestedBy })],
+        });
         return;
       }
 
