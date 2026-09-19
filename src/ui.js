@@ -2,6 +2,7 @@ const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('
 const config = require('./config');
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
+const SPACER = { name: '​', value: '​', inline: false };
 
 function formatTanggalIndo(date) {
   return new Intl.DateTimeFormat('id-ID', {
@@ -17,66 +18,55 @@ function daysBetween(from, to) {
 }
 
 /**
- * Progress bar premium pakai blok unicode, contoh: ▰▰▰▰▰▰▱▱▱▱▱▱▱▱ 6/14 hari
+ * Progress bar simpel pakai blok unicode, contoh: ●●●●●●○○○○○○○○ 6/14 hari
  */
 function buildProgressBar(current, total, length = 14) {
   const clampedCurrent = Math.max(0, Math.min(current, total));
   const filled = Math.round((clampedCurrent / total) * length);
   const empty = length - filled;
-  return `${'▰'.repeat(filled)}${'▱'.repeat(empty)}  \`${clampedCurrent}/${total} hari\``;
+  return `${'●'.repeat(filled)}${'○'.repeat(empty)}  \`${clampedCurrent}/${total} hari\``;
+}
+
+function authorConfig(member) {
+  return {
+    name: `${config.community.name} - Community Verification`,
+    iconURL: member?.groupIconUrl || undefined,
+    url: config.community.url,
+  };
 }
 
 /**
- * Bangun embed hasil pengecekan eligibility, dengan tampilan "premium":
- * - thumbnail avatar Roblox
- * - author = nama komunitas
- * - warna berbeda tergantung status
- * - progress bar untuk yang belum eligible
+ * Embed hasil pengecekan eligibility — fresh & simple:
+ * - author: logo bulat komunitas + nama
+ * - identitas member ringkas
+ * - jarak, lalu Bergabung Sejak & Eligible Pada sebaris (di tampilan desktop)
+ * - progress bar
+ * - status paling bawah
  */
 function buildEligibilityEmbed({ member, eligibilityDays, requestedBy }) {
   const now = new Date();
   const joinedDays = daysBetween(member.joinedAt, now);
   const isEligible = joinedDays >= eligibilityDays;
-
   const eligibleDate = new Date(member.joinedAt.getTime() + eligibilityDays * MS_PER_DAY);
 
   const embed = new EmbedBuilder()
-    .setAuthor({
-      name: `Verifikasi Eligibility • ${config.community.name}`,
-      url: config.community.url,
-    })
-    .setTitle(`${member.displayName} (@${member.username})`)
+    .setAuthor(authorConfig(member))
+    .setTitle(`${member.displayName}  ·  @${member.username}`)
     .setURL(member.profileUrl)
     .setColor(isEligible ? config.colors.eligible : config.colors.pending)
+    .setThumbnail(member.avatarUrl || null)
+    .setDescription(`🆔 ID Roblox: \`${member.id}\``)
     .addFields(
-      { name: '🧾 Username', value: `\`${member.username}\``, inline: true },
-      { name: '🏷️ Display Name', value: member.displayName, inline: true },
-      { name: '🆔 ID Roblox', value: `\`${member.id}\``, inline: true },
+      SPACER,
       {
         name: '📅 Bergabung Sejak',
         value: `${formatTanggalIndo(member.joinedAt)}\n-# ${joinedDays} hari yang lalu`,
-        inline: false,
-      }
-    )
-    .setThumbnail(member.avatarUrl || null)
-    .setTimestamp(now)
-    .setFooter({
-      text: requestedBy ? `Diminta oleh ${requestedBy}` : config.community.name,
-    });
-
-  if (isEligible) {
-    embed.addFields({
-      name: '✅ Status',
-      value: `**Eligible** — sudah memenuhi syarat ${eligibilityDays} hari bergabung.`,
-      inline: false,
-    });
-  } else {
-    const remainingDays = eligibilityDays - joinedDays;
-    embed.addFields(
+        inline: true,
+      },
       {
-        name: '⏳ Status',
-        value: `**Belum Eligible** — kurang **${remainingDays} hari** lagi.`,
-        inline: false,
+        name: '🎯 Eligible Pada',
+        value: formatTanggalIndo(eligibleDate),
+        inline: true,
       },
       {
         name: '📈 Progress',
@@ -84,19 +74,22 @@ function buildEligibilityEmbed({ member, eligibilityDays, requestedBy }) {
         inline: false,
       },
       {
-        name: '🎯 Eligible Pada',
-        value: formatTanggalIndo(eligibleDate),
+        name: 'Status',
+        value: isEligible
+          ? `✅ **Eligible** — sudah memenuhi syarat ${eligibilityDays} hari bergabung.`
+          : `⏳ **Belum Eligible** — kurang **${eligibilityDays - joinedDays} hari** lagi.`,
         inline: false,
       }
-    );
-  }
+    )
+    .setTimestamp(now)
+    .setFooter({ text: requestedBy ? `Diminta oleh ${requestedBy}` : config.community.name });
 
   return embed;
 }
 
-function buildNotMemberEmbed({ username, requestedBy }) {
+function buildNotMemberEmbed({ username, groupIconUrl, requestedBy }) {
   return new EmbedBuilder()
-    .setAuthor({ name: `Verifikasi Eligibility • ${config.community.name}` })
+    .setAuthor(authorConfig({ groupIconUrl }))
     .setTitle(`@${username}`)
     .setColor(config.colors.notMember)
     .setDescription(
