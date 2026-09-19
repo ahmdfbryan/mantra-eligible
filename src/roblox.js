@@ -54,6 +54,20 @@ async function getAvatarHeadshotUrl(userId, size = '420x420') {
 }
 
 /**
+ * Ambil URL logo/icon grup (bulat). Endpoint publik.
+ */
+async function getGroupIconUrl(groupId, size = '150x150') {
+  const url = `https://thumbnails.roblox.com/v1/groups/icons?groupIds=${groupId}&size=${size}&format=Png&isCircular=true`;
+  const res = await fetch(url);
+  if (!res.ok) return null;
+
+  const json = await res.json();
+  const entry = json?.data?.[0];
+  if (!entry || entry.state !== 'Completed') return null;
+  return entry.imageUrl || null;
+}
+
+/**
  * Cari waktu pertama kali user bergabung ke grup, lewat Open Cloud v2
  * (List Group Memberships), difilter langsung ke user yang dicari.
  * Butuh ROBLOX_API_KEY dengan scope group:read pada group tsb.
@@ -109,14 +123,16 @@ async function getGroupJoinDate(userId) {
  */
 async function lookupMember(username) {
   const user = await getUserByUsername(username);
-  const [avatarUrl, joinedAt] = await Promise.all([
+  const [avatarUrl, groupIconUrl, joinedAt] = await Promise.all([
     getAvatarHeadshotUrl(user.id).catch(() => null),
+    getGroupIconUrl(config.robloxGroupId).catch(() => null),
     getGroupJoinDate(user.id),
   ]);
 
   return {
     ...user,
     avatarUrl,
+    groupIconUrl,
     joinedAt,
     profileUrl: `https://www.roblox.com/users/${user.id}/profile`,
   };
@@ -126,6 +142,7 @@ module.exports = {
   RobloxApiError,
   getUserByUsername,
   getAvatarHeadshotUrl,
+  getGroupIconUrl,
   getGroupJoinDate,
   lookupMember,
 };
