@@ -51,7 +51,7 @@ function buildEligibilityEmbed({ member, eligibilityDays, requestedBy }) {
 
   const embed = new EmbedBuilder()
     .setAuthor(authorConfig(member))
-    .setTitle(isEligible ? '✅ Eligible Verification' : '⏳ Eligible Unverification')
+    .setTitle(isEligible ? '🟢 Eligible Verification' : '🟡 Eligible Unverification')
     .setColor(isEligible ? config.colors.eligible : config.colors.pending)
     .setThumbnail(member.avatarUrl || null)
     .addFields(
