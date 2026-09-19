@@ -51,16 +51,11 @@ function buildEligibilityEmbed({ member, eligibilityDays, requestedBy }) {
 
   const embed = new EmbedBuilder()
     .setAuthor(authorConfig(member))
-    .setTitle('Hasil Verifikasi Member')
-    .setURL(member.profileUrl)
     .setColor(isEligible ? config.colors.eligible : config.colors.pending)
     .setThumbnail(member.avatarUrl || null)
     .addFields(
-      {
-        name: '👤 Player',
-        value: `**${member.displayName}**\n@${member.username}`,
-        inline: true,
-      },
+      { name: '👤 Username', value: `\`${member.username}\``, inline: true },
+      { name: '🏷️ Display Name', value: `\`${member.displayName}\``, inline: true },
       { name: '🆔 ID Roblox', value: `\`${member.id}\``, inline: true },
       SPACER,
       {
