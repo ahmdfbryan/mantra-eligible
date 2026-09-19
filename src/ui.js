@@ -51,6 +51,7 @@ function buildEligibilityEmbed({ member, eligibilityDays, requestedBy }) {
 
   const embed = new EmbedBuilder()
     .setAuthor(authorConfig(member))
+    .setTitle(isEligible ? '✅ Eligible Verification' : '⏳ Eligible Unverification')
     .setColor(isEligible ? config.colors.eligible : config.colors.pending)
     .setThumbnail(member.avatarUrl || null)
     .addFields(
@@ -90,10 +91,11 @@ function buildEligibilityEmbed({ member, eligibilityDays, requestedBy }) {
 function buildNotMemberEmbed({ username, groupIconUrl, requestedBy }) {
   return new EmbedBuilder()
     .setAuthor(authorConfig({ groupIconUrl }))
-    .setTitle(`@${username}`)
+    .setTitle('❌ Belum Terdaftar sebagai Member')
     .setColor(config.colors.notMember)
+    .addFields({ name: '👤 Username', value: `\`${username}\``, inline: true })
     .setDescription(
-      `❌ User ini **belum bergabung** ke komunitas Roblox **${config.community.name}**, atau username salah ketik.`
+      `User ini **belum bergabung** ke komunitas Roblox **${config.community.name}**, atau username salah ketik.`
     )
     .setTimestamp(new Date())
     .setFooter({ text: requestedBy ? `Diminta oleh ${requestedBy}` : config.community.name });
