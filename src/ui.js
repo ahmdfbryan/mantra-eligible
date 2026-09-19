@@ -88,7 +88,7 @@ function buildNotMemberEmbed({ username, groupIconUrl, requestedBy }) {
     .setColor(config.colors.notMember)
     .addFields({ name: '👤 Username', value: `\`${username}\``, inline: true })
     .setDescription(
-      `User ini **belum bergabung** ke komunitas Roblox **${config.community.name}**, atau username salah ketik.`
+      `User ini **belum bergabung** ke komunitas Roblox **${config.community.name}**.`
     )
     .setTimestamp(new Date())
     .setFooter({ text: requestedBy ? `Diminta oleh ${requestedBy}` : config.community.name });
