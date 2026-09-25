@@ -17,6 +17,8 @@ const {
   buildCheckModal,
 } = require('./panel');
 const store = require('./store');
+const quizStore = require('./quizStore');
+const { buildLeaderboardEmbed, syncTopRoles, refreshLeaderboardMessage } = require('./quiz');
 
 const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages],
@@ -158,6 +160,101 @@ async function handleUnpanelCommand(interaction) {
   await interaction.editReply('✅ Panel "Cek Status Akun" sudah dilepas dari channel ini.');
 }
 
+function requireManageGuild(interaction) {
+  if (interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)) return true;
+  interaction.reply({
+    content: '❌ Kamu butuh permission **Manage Server** untuk pakai command ini.',
+    ephemeral: true,
+  });
+  return false;
+}
+
+/**
+ * Setelah poin berubah: sinkronkan role top 1/2/3, lalu refresh pesan
+ * leaderboard yang lagi live (kalau ada).
+ */
+async function afterQuizPointsChanged(interaction) {
+  if (interaction.guild) {
+    await syncTopRoles(interaction.guild).catch((error) => {
+      console.error('[quiz] Gagal sinkron role top 1/2/3:', error);
+    });
+  }
+  await refreshLeaderboardMessage(interaction.client).catch((error) => {
+    console.error('[quiz] Gagal refresh pesan leaderboard:', error);
+  });
+}
+
+async function handleQuizMenangCommand(interaction) {
+  if (!requireManageGuild(interaction)) return;
+
+  const targetUser = interaction.options.getUser('user', true);
+  const amount = interaction.options.getInteger('poin') ?? 1;
+
+  await interaction.deferReply({ ephemeral: true });
+
+  const updatedPoints = quizStore.addPoints(targetUser.id, amount);
+  await afterQuizPointsChanged(interaction);
+
+  await interaction.editReply(
+    `✅ <@${targetUser.id}> +**${amount}** poin — total sekarang **${updatedPoints}** poin.`
+  );
+}
+
+async function handleQuizKurangCommand(interaction) {
+  if (!requireManageGuild(interaction)) return;
+
+  const targetUser = interaction.options.getUser('user', true);
+  const amount = interaction.options.getInteger('poin') ?? 1;
+
+  await interaction.deferReply({ ephemeral: true });
+
+  const updatedPoints = quizStore.addPoints(targetUser.id, -amount);
+  await afterQuizPointsChanged(interaction);
+
+  await interaction.editReply(
+    `✅ <@${targetUser.id}> -**${amount}** poin — total sekarang **${updatedPoints}** poin.`
+  );
+}
+
+async function handleQuizSetCommand(interaction) {
+  if (!requireManageGuild(interaction)) return;
+
+  const targetUser = interaction.options.getUser('user', true);
+  const amount = interaction.options.getInteger('poin', true);
+
+  await interaction.deferReply({ ephemeral: true });
+
+  const updatedPoints = quizStore.setPoints(targetUser.id, amount);
+  await afterQuizPointsChanged(interaction);
+
+  await interaction.editReply(`✅ Poin <@${targetUser.id}> di-set jadi **${updatedPoints}** poin.`);
+}
+
+async function handleQuizLeaderboardCommand(interaction) {
+  if (!requireManageGuild(interaction)) return;
+
+  await interaction.deferReply({ ephemeral: true });
+
+  const existing = quizStore.getPanel();
+  if (existing?.messageId) {
+    const oldChannel = await interaction.client.channels.fetch(existing.channelId).catch(() => null);
+    if (oldChannel) {
+      const oldMessage = await oldChannel.messages.fetch(existing.messageId).catch(() => null);
+      if (oldMessage) await oldMessage.delete().catch(() => null);
+    }
+  }
+
+  const panelMessage = await interaction.channel.send({ embeds: [buildLeaderboardEmbed()] });
+
+  quizStore.setPanel({
+    guildId: interaction.guildId,
+    channelId: interaction.channelId,
+    messageId: panelMessage.id,
+  });
+
+  await interaction.editReply('✅ Panel Quiz Arena Leaderboard dipasang & live di channel ini.');
+}
+
 /**
  * Jadwalkan repost panel supaya tetap jadi pesan paling bawah/terbaru
  * (sticky), dengan debounce supaya tidak spam saat chat lagi ramai.
@@ -234,6 +331,26 @@ client.on('interactionCreate', async (interaction) => {
 
     if (interaction.commandName === 'unpanel') {
       await handleUnpanelCommand(interaction);
+      return;
+    }
+
+    if (interaction.commandName === 'quiz-menang') {
+      await handleQuizMenangCommand(interaction);
+      return;
+    }
+
+    if (interaction.commandName === 'quiz-kurang') {
+      await handleQuizKurangCommand(interaction);
+      return;
+    }
+
+    if (interaction.commandName === 'quiz-set') {
+      await handleQuizSetCommand(interaction);
+      return;
+    }
+
+    if (interaction.commandName === 'quiz-leaderboard') {
+      await handleQuizLeaderboardCommand(interaction);
       return;
     }
 
