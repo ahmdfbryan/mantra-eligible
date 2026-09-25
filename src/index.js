@@ -226,7 +226,7 @@ client.on('interactionCreate', async (interaction) => {
   if (interaction.isModalSubmit()) {
     if (interaction.customId === CHECK_MODAL_ID) {
       const username = interaction.fields.getTextInputValue(CHECK_MODAL_USERNAME_ID).trim();
-      await interaction.deferReply({ ephemeral: true });
+      await interaction.deferReply();
       await handleUsernameCheck(interaction, username);
     }
     return;
