@@ -32,4 +32,11 @@ module.exports = {
       process.env.COMMUNITY_URL ||
       'https://www.roblox.com/id/communities/783602348/MANTRA-CREATIVE',
   },
+
+  // Role yang otomatis dipasang ke Top 1/2/3 Quiz Arena Leaderboard.
+  quizTopRoles: {
+    1: process.env.QUIZ_ROLE_TOP1 || '1553133641587105942',
+    2: process.env.QUIZ_ROLE_TOP2 || '1553133806456930435',
+    3: process.env.QUIZ_ROLE_TOP3 || '1553133866460647485',
+  },
 };
