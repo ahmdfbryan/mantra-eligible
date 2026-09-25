@@ -4,6 +4,16 @@ const store = require('./quizStore');
 
 const MEDALS = ['🥇', '🥈', '🥉'];
 
+const NOTE_FIELD = {
+  name: '📌 Catatan',
+  value: [
+    '• Leaderboard ini akan diperbarui otomatis ketika ada perubahan poin.',
+    '• Poin bertambah saat user menjadi pemenang Quiz.',
+    '• Role Top 1, 2, dan 3 akan otomatis mengikuti posisi leaderboard.',
+  ].join('\n'),
+  inline: false,
+};
+
 function formatEntry(entry, index) {
   const rank = index + 1;
   const prefix = rank <= 3 ? MEDALS[rank - 1] : `**${rank}.**`;
@@ -27,6 +37,7 @@ function buildLeaderboardEmbed(guildIconUrl) {
 
   if (leaderboard.length === 0) {
     embed.setDescription('Belum ada peserta yang punya poin. Menangkan quiz untuk masuk leaderboard! 🎯');
+    embed.addFields(NOTE_FIELD);
     return embed;
   }
 
@@ -59,6 +70,8 @@ function buildLeaderboardEmbed(guildIconUrl) {
       inline: false,
     });
   }
+
+  embed.addFields(NOTE_FIELD);
 
   return embed;
 }
