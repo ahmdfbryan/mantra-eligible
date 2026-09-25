@@ -7,7 +7,7 @@
   "scripts": {
     "start": "node src/index.js",
     "deploy": "node src/deploy-commands.js",
-    "check": "node --check src/index.js && node --check src/roblox.js && node --check src/ui.js && node --check src/panel.js && node --check src/store.js && node --check src/deploy-commands.js && node --check src/config.js"
+    "check": "node --check src/index.js && node --check src/roblox.js && node --check src/ui.js && node --check src/panel.js && node --check src/store.js && node --check src/quiz.js && node --check src/quizStore.js && node --check src/deploy-commands.js && node --check src/config.js"
   },
   "engines": {
     "node": ">=18.17"
