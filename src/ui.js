@@ -29,7 +29,7 @@ function buildProgressBar(current, total, length = 14) {
 
 function authorConfig(member) {
   return {
-    name: `${config.community.name}`,
+    name: `${config.community.name} - Community Verification`,
     iconURL: member?.groupIconUrl || undefined,
     url: config.community.url,
   };
@@ -88,7 +88,18 @@ function buildNotMemberEmbed({ username, groupIconUrl, requestedBy }) {
     .setColor(config.colors.notMember)
     .addFields({ name: '👤 Username', value: `\`${username}\``, inline: true })
     .setDescription(
-      `User ini **belum bergabung** ke komunitas Roblox **${config.community.name}**.`
+      `Username Roblox ini valid, tapi **belum bergabung** ke komunitas Roblox **${config.community.name}**.\n\nSilakan join komunitasnya dulu, lalu cek lagi setelah 14 hari.`
+    )
+    .setTimestamp(new Date())
+    .setFooter({ text: requestedBy ? `Diminta oleh ${requestedBy}` : config.community.name });
+}
+
+function buildUsernameNotFoundEmbed({ username, requestedBy }) {
+  return new EmbedBuilder()
+    .setColor(config.colors.error)
+    .setTitle('🔎 Username Tidak Ditemukan')
+    .setDescription(
+      `Username Roblox \`${username}\` **tidak ditemukan** di Roblox. Periksa lagi ejaannya (username, bukan display name).`
     )
     .setTimestamp(new Date())
     .setFooter({ text: requestedBy ? `Diminta oleh ${requestedBy}` : config.community.name });
@@ -116,6 +127,7 @@ function buildProfileButtonRow(profileUrl) {
 module.exports = {
   buildEligibilityEmbed,
   buildNotMemberEmbed,
+  buildUsernameNotFoundEmbed,
   buildErrorEmbed,
   buildProfileButtonRow,
   formatTanggalIndo,
