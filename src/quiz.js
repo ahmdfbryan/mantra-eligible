@@ -45,7 +45,7 @@ function buildLeaderboardEmbed(guildIconUrl) {
   const top4to10 = leaderboard.slice(3, 10);
   const top11to20 = leaderboard.slice(10, 20);
 
-  embed.setDescription(top3.map((entry, i) => formatEntry(entry, i)).join('\n'));
+  embed.setDescription(top3.map((entry, i) => formatEntry(entry, i)).join('\n\n'));
 
   if (top4to10.length > 0) {
     embed.addFields({
