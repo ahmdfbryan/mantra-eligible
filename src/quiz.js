@@ -12,14 +12,16 @@ function formatEntry(entry, index) {
 
 /**
  * Embed leaderboard: Top 1-3 (medali) di description, lalu Top 4-10 dan
- * Top 11-20 masing-masing jadi field terpisah.
+ * Top 11-20 masing-masing jadi field terpisah. Logo server (kalau ada)
+ * ditaruh di thumbnail (pojok kanan atas).
  */
-function buildLeaderboardEmbed() {
+function buildLeaderboardEmbed(guildIconUrl) {
   const leaderboard = store.getSortedLeaderboard();
 
   const embed = new EmbedBuilder()
     .setColor(0xf5a623)
     .setTitle('🏆 Quiz Arena Leaderboard')
+    .setThumbnail(guildIconUrl || null)
     .setTimestamp(new Date())
     .setFooter({ text: config.community.name });
 
@@ -130,7 +132,8 @@ async function refreshLeaderboardMessage(client) {
       return;
     }
 
-    await message.edit({ embeds: [buildLeaderboardEmbed()] });
+    const guildIconUrl = channel.guild?.iconURL({ size: 256 }) || null;
+    await message.edit({ embeds: [buildLeaderboardEmbed(guildIconUrl)] });
   } catch (error) {
     console.error('[quiz] Gagal refresh pesan leaderboard:', error);
   }
