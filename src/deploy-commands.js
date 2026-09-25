@@ -1,4 +1,4 @@
-const { REST, Routes, SlashCommandBuilder } = require('discord.js');
+const { REST, Routes, SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const config = require('./config');
 
 const commands = [
@@ -11,6 +11,14 @@ const commands = [
         .setDescription('Username Roblox yang mau dicek')
         .setRequired(true)
     ),
+  new SlashCommandBuilder()
+    .setName('panel')
+    .setDescription('Pasang panel "Cek Status Akun" (sticky) di channel ini')
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
+  new SlashCommandBuilder()
+    .setName('unpanel')
+    .setDescription('Lepas panel "Cek Status Akun" dari channel ini')
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
 ].map((command) => command.toJSON());
 
 const rest = new REST({ version: '10' }).setToken(config.discordToken);
