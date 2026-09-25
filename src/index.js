@@ -244,7 +244,10 @@ async function handleQuizLeaderboardCommand(interaction) {
     }
   }
 
-  const panelMessage = await interaction.channel.send({ embeds: [buildLeaderboardEmbed()] });
+  const guildIconUrl = interaction.guild?.iconURL({ size: 256 }) || null;
+  const panelMessage = await interaction.channel.send({
+    embeds: [buildLeaderboardEmbed(guildIconUrl)],
+  });
 
   quizStore.setPanel({
     guildId: interaction.guildId,
