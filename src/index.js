@@ -25,6 +25,8 @@ const client = new Client({
 // Debounce per-channel supaya panel sticky tidak spam re-post saat chat ramai.
 const STICKY_DEBOUNCE_MS = 1500;
 const stickyTimers = new Map();
+// Channel yang sedang dalam proses hapus+kirim-ulang panel (anti race/loop).
+const repostingChannels = new Set();
 
 client.once('clientReady', () => {
   console.log(`🤖 Login sebagai ${client.user.tag}`);
@@ -102,23 +104,30 @@ async function handlePanelCommand(interaction) {
 
   await interaction.deferReply({ ephemeral: true });
 
-  // Kalau sudah ada panel lama di channel ini, hapus dulu biar tidak dobel.
-  const existing = store.getPanel(interaction.channelId);
-  if (existing?.messageId) {
-    const oldMessage = await interaction.channel.messages.fetch(existing.messageId).catch(() => null);
-    if (oldMessage) await oldMessage.delete().catch(() => null);
+  repostingChannels.add(interaction.channelId);
+  try {
+    // Kalau sudah ada panel lama di channel ini, hapus dulu biar tidak dobel.
+    const existing = store.getPanel(interaction.channelId);
+    if (existing?.messageId) {
+      const oldMessage = await interaction.channel.messages
+        .fetch(existing.messageId)
+        .catch(() => null);
+      if (oldMessage) await oldMessage.delete().catch(() => null);
+    }
+
+    const panelMessage = await interaction.channel.send({
+      embeds: [buildPanelEmbed()],
+      components: [buildPanelComponents()],
+    });
+
+    store.setPanel(interaction.channelId, {
+      guildId: interaction.guildId,
+      channelId: interaction.channelId,
+      messageId: panelMessage.id,
+    });
+  } finally {
+    repostingChannels.delete(interaction.channelId);
   }
-
-  const panelMessage = await interaction.channel.send({
-    embeds: [buildPanelEmbed()],
-    components: [buildPanelComponents()],
-  });
-
-  store.setPanel(interaction.channelId, {
-    guildId: interaction.guildId,
-    channelId: interaction.channelId,
-    messageId: panelMessage.id,
-  });
 
   await interaction.editReply('✅ Panel "Cek Status Akun" dipasang & sticky aktif di channel ini.');
 }
@@ -163,6 +172,12 @@ function scheduleStickyRepost(channel) {
     const panel = store.getPanel(channelId);
     if (!panel) return;
 
+    // Ditandai SEBELUM ada request network apa pun, supaya event "pesan baru"
+    // untuk hapus/kirim ulang panel ini pasti diabaikan walau gateway event-nya
+    // sempat nyampe lebih dulu daripada respons REST-nya (race condition yang
+    // bikin panel kedip-kedip/infinite repost kalau tidak ditangani).
+    repostingChannels.add(channelId);
+
     try {
       if (panel.messageId) {
         const oldMessage = await channel.messages.fetch(panel.messageId).catch(() => null);
@@ -177,6 +192,8 @@ function scheduleStickyRepost(channel) {
       store.setPanel(channelId, { ...panel, messageId: newMessage.id });
     } catch (error) {
       console.error(`[sticky] Gagal repost panel di channel ${channelId}:`, error);
+    } finally {
+      repostingChannels.delete(channelId);
     }
   }, STICKY_DEBOUNCE_MS);
 
@@ -186,12 +203,15 @@ function scheduleStickyRepost(channel) {
 client.on('messageCreate', (message) => {
   if (!message.guild) return;
 
+  // Sedang proses hapus+kirim-ulang panel di channel ini -> abaikan dulu,
+  // supaya echo dari aksi kita sendiri tidak dianggap "pesan baru dari user".
+  if (repostingChannels.has(message.channelId)) return;
+
   const panel = store.getPanel(message.channelId);
   if (!panel) return;
 
-  // Hindari loop: jangan re-trigger kalau pesan ini adalah panel itu sendiri.
-  // Pesan LAIN dari bot (misalnya hasil pengecekan dari modal) tetap harus
-  // memicu sticky, jadi jangan filter berdasarkan author bot secara umum.
+  // Jaga-jaga kalau event-nya nyampe agak telat (setelah flag di atas sudah
+  // kelar): kalau pesan ini persis panel yang sedang aktif, jangan re-trigger.
   if (panel.messageId === message.id) return;
 
   scheduleStickyRepost(message.channel);
