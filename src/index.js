@@ -185,8 +185,14 @@ function scheduleStickyRepost(channel) {
 
 client.on('messageCreate', (message) => {
   if (!message.guild) return;
-  if (message.author.id === client.user.id) return; // hindari loop dari repost sendiri
-  if (!store.getPanel(message.channelId)) return;
+
+  const panel = store.getPanel(message.channelId);
+  if (!panel) return;
+
+  // Hindari loop: jangan re-trigger kalau pesan ini adalah panel itu sendiri.
+  // Pesan LAIN dari bot (misalnya hasil pengecekan dari modal) tetap harus
+  // memicu sticky, jadi jangan filter berdasarkan author bot secara umum.
+  if (panel.messageId === message.id) return;
 
   scheduleStickyRepost(message.channel);
 });
