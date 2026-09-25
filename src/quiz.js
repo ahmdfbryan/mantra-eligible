@@ -4,8 +4,7 @@ const store = require('./quizStore');
 
 const MEDALS = ['🥇', '🥈', '🥉'];
 
-const INTRO_LINE =
-  '✨ *Berikut merupakan daftar peserta dengan poin Quiz terbanyak di komunitas Mantra Creative.* ✨';
+const INTRO_LINE = 'Berikut merupakan daftar peserta dengan poin Quiz terbanyak di komunitas Mantra Creative.';
 
 const NOTE_FIELD = {
   name: '📌 Catatan',
