@@ -150,6 +150,9 @@ async function renderIdCard({
   level,
   xpIntoLevel,
   xpForNextLevel,
+  totalXp,
+  rank,
+  totalRanked,
   communityName,
 }) {
   const canvas = createCanvas(WIDTH, HEIGHT);
@@ -355,6 +358,45 @@ async function renderIdCard({
   ctx.fillStyle = COLORS.gray;
   ctx.font = '600 18px sans-serif';
   ctx.fillText(formatDate(createdAt), footerCol2X, footerY + 24);
+
+  // ---- Statistik aktivitas: ranking level & total XP di server ----
+  const statY = footerY + 46;
+  const statH = 68;
+  const statColW = (gridW - colGap) / 2;
+
+  roundRectPath(ctx, gridX, statY, statColW, statH, 14);
+  ctx.fillStyle = COLORS.fieldFill;
+  ctx.fill();
+  ctx.strokeStyle = COLORS.fieldStroke;
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  ctx.fillStyle = COLORS.pinkSoft;
+  ctx.font = 'bold 12px sans-serif';
+  ctx.fillText('RANKING SERVER', gridX + 18, statY + 24);
+  ctx.fillStyle = COLORS.white;
+  ctx.font = 'bold 22px sans-serif';
+  const rankText = rank ? `#${rank}` : '-';
+  ctx.fillText(rankText, gridX + 18, statY + 50);
+  if (totalRanked) {
+    const rankTextWidth = ctx.measureText(rankText).width;
+    ctx.fillStyle = COLORS.grayDim;
+    ctx.font = '600 13px sans-serif';
+    ctx.fillText(`dari ${totalRanked} member`, gridX + 18 + rankTextWidth + 10, statY + 50);
+  }
+
+  const statCol2X = gridX + statColW + colGap;
+  roundRectPath(ctx, statCol2X, statY, statColW, statH, 14);
+  ctx.fillStyle = COLORS.fieldFill;
+  ctx.fill();
+  ctx.strokeStyle = COLORS.fieldStroke;
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  ctx.fillStyle = COLORS.pinkSoft;
+  ctx.font = 'bold 12px sans-serif';
+  ctx.fillText('TOTAL XP', statCol2X + 18, statY + 24);
+  ctx.fillStyle = COLORS.white;
+  ctx.font = 'bold 22px sans-serif';
+  ctx.fillText(Number(totalXp || 0).toLocaleString('id-ID'), statCol2X + 18, statY + 50);
 
   // ---- Watermark komunitas ----
   ctx.textAlign = 'right';
