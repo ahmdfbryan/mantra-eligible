@@ -112,6 +112,9 @@ const commands = [
     .addUserOption((option) =>
       option.setName('user').setDescription('Member yang mau dicek levelnya (default: kamu sendiri)').setRequired(false)
     ),
+  new SlashCommandBuilder()
+    .setName('checkin')
+    .setDescription('Tampilkan panel "Daily Check-in" (klaim reward XP harian)'),
 ].map((command) => command.toJSON());
 
 const rest = new REST({ version: '10' }).setToken(config.discordToken);
