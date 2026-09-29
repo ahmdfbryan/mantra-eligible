@@ -107,6 +107,25 @@ function buildIdCardModal(existing) {
     );
 }
 
+/**
+ * Embed hasil ID Card (dibungkus embed ala referensi: icon server + nama
+ * komunitas, "ID milik @user", gambar kartu di badan embed, footer "Made by
+ * ... Dev Team" + timestamp) -- dipakai baik waktu submit modal "Buat ID"
+ * maupun klik "Lihat ID Saya".
+ */
+function buildIdCardResultEmbed({ guild, targetUser, communityName, attachmentName }) {
+  const name = communityName || 'MANTRA CREATIVE';
+  const embed = new EmbedBuilder()
+    .setColor(COLOR_PINK)
+    .setAuthor({ name, iconURL: guild.iconURL({ size: 128 }) || undefined })
+    .setTitle(`${name} ID Card`)
+    .setDescription(`ID milik <@${targetUser.id}>`)
+    .setImage(`attachment://${attachmentName}`)
+    .setFooter({ text: `Made by ${name} Dev Team` })
+    .setTimestamp(new Date());
+  return embed;
+}
+
 module.exports = {
   BTN_CREATE_ID,
   BTN_VIEW_ID,
@@ -119,4 +138,5 @@ module.exports = {
   buildIdCardPanelEmbed,
   buildIdCardPanelComponents,
   buildIdCardModal,
+  buildIdCardResultEmbed,
 };
