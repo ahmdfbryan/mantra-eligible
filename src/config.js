@@ -53,4 +53,9 @@ module.exports = {
   // Channel tempat notif "Level Up!" (+ gambar) dikirim. Kosongkan supaya
   // notif dikirim di channel yang sama tempat member itu chat.
   levelUpChannelId: process.env.LEVEL_UP_CHANNEL_ID || null,
+
+  // Role yang otomatis dipasang begitu member mencapai LEVEL_VERIFIED_MIN_LEVEL
+  // (default level 10). Kosongkan LEVEL_VERIFIED_ROLE_ID untuk mematikan fitur ini.
+  levelVerifiedRoleId: process.env.LEVEL_VERIFIED_ROLE_ID || '1549779005945684078',
+  levelVerifiedMinLevel: Number(process.env.LEVEL_VERIFIED_MIN_LEVEL || 10),
 };
