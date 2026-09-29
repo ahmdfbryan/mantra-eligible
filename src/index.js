@@ -59,6 +59,13 @@ const {
   buildIdCardModal,
   buildIdCardResultEmbed,
 } = require('./idcard/idCardPanel');
+const checkinStore = require('./idcard/checkinStore');
+const {
+  BTN_CLAIM: CHECKIN_BTN_CLAIM,
+  buildCheckinPanelEmbed,
+  buildCheckinPanelComponents,
+  formatRemaining,
+} = require('./idcard/checkinPanel');
 
 const client = new Client({
   // GuildMembers (privileged) wajib diaktifkan juga di Discord Developer
@@ -616,25 +623,27 @@ async function handleIdCardCommand(interaction) {
 
 /**
  * Render + kirim kartu "Level Up!" ke channel yang sudah di-set
- * (LEVEL_UP_CHANNEL_ID), atau ke channel yang sama tempat member itu chat
- * kalau tidak di-set. Non-fatal: dipanggil fire-and-forget dari messageCreate.
+ * (LEVEL_UP_CHANNEL_ID), atau ke `fallbackChannel` (channel tempat trigger-nya
+ * terjadi) kalau tidak di-set. Non-fatal: dipanggil fire-and-forget baik dari
+ * messageCreate (XP chat) maupun dari klaim Daily Check-in.
+ * @param {{ guild: import('discord.js').Guild, channel: import('discord.js').TextBasedChannel, user: import('discord.js').User }} ctx
  */
-async function announceLevelUp(message, level) {
+async function announceLevelUp({ guild, channel: fallbackChannel, user }, level) {
   const channel = config.levelUpChannelId
-    ? await message.guild.channels.fetch(config.levelUpChannelId).catch(() => null)
-    : message.channel;
+    ? await guild.channels.fetch(config.levelUpChannelId).catch(() => null)
+    : fallbackChannel;
   if (!channel) return;
 
   const buffer = await renderLevelUpCard({
-    avatarUrl: message.author.displayAvatarURL({ extension: 'png', size: 256 }),
-    username: message.author.username,
+    avatarUrl: user.displayAvatarURL({ extension: 'png', size: 256 }),
+    username: user.username,
     level,
     communityName: config.community.name,
   });
 
   await channel.send({
-    content: `🎉 <@${message.author.id}> naik ke **Level ${level}**!`,
-    files: [new AttachmentBuilder(buffer, { name: `level-up-${message.author.id}.png` })],
+    content: `🎉 <@${user.id}> naik ke **Level ${level}**!`,
+    files: [new AttachmentBuilder(buffer, { name: `level-up-${user.id}.png` })],
   });
 }
 
@@ -680,6 +689,13 @@ async function handleRankCommand(interaction) {
   await interaction.editReply(
     `📊 **${target.username}** -- Level **${levelInfo.level}** (${levelInfo.xpIntoLevel}/${levelInfo.xpForNextLevel} XP menuju level berikutnya, total ${levelInfo.totalXp} XP).`
   );
+}
+
+async function handleCheckinCommand(interaction) {
+  await interaction.reply({
+    embeds: [buildCheckinPanelEmbed(interaction.guild, config.community.name)],
+    components: [buildCheckinPanelComponents()],
+  });
 }
 
 /**
@@ -774,9 +790,10 @@ client.on('messageCreate', (message) => {
     try {
       const result = levelStore.tryAddXp(message.guildId, message.author.id);
       if (result?.leveledUp) {
-        announceLevelUp(message, result.level).catch((error) =>
-          console.error('[level] Gagal kirim notif level up:', error)
-        );
+        announceLevelUp(
+          { guild: message.guild, channel: message.channel, user: message.author },
+          result.level
+        ).catch((error) => console.error('[level] Gagal kirim notif level up:', error));
       }
     } catch (error) {
       console.error('[level] Gagal proses XP:', error);
@@ -1047,6 +1064,11 @@ client.on('interactionCreate', async (interaction) => {
       return;
     }
 
+    if (interaction.commandName === 'checkin') {
+      await handleCheckinCommand(interaction);
+      return;
+    }
+
     return;
   }
 
@@ -1103,6 +1125,43 @@ client.on('interactionCreate', async (interaction) => {
       files: [attachment],
       components: [buildIdCardPanelComponents()],
     });
+    return;
+  }
+
+  // ==== Tombol "🔥 Daily Check-in" di panel check-in ====
+  // Ephemeral (cuma yang klik yang lihat) -- ini notifikasi reward pribadi,
+  // bukan hasil yang perlu dipamerkan ke channel seperti ID Card.
+  if (interaction.isButton() && interaction.customId === CHECKIN_BTN_CLAIM) {
+    const result = checkinStore.claim(interaction.guildId, interaction.user.id);
+
+    if (!result.eligible) {
+      const remainingMs = result.nextAvailableAt - Date.now();
+      await interaction.reply({
+        content: `⏳ Kamu sudah check-in hari ini. Coba lagi dalam **${formatRemaining(remainingMs)}**.`,
+        ephemeral: true,
+      });
+      return;
+    }
+
+    let xpResult;
+    try {
+      xpResult = levelStore.addXp(interaction.guildId, interaction.user.id, result.reward);
+    } catch (error) {
+      console.error('[checkin] Gagal tambah XP check-in:', error);
+    }
+
+    const streakNote = result.isNewStreak && result.streak === 1 ? '' : ` 🔥 Streak: **${result.streak} hari**`;
+    await interaction.reply({
+      content: `✅ Check-in berhasil! **+${result.reward} XP**.${streakNote}`,
+      ephemeral: true,
+    });
+
+    if (xpResult?.leveledUp) {
+      announceLevelUp(
+        { guild: interaction.guild, channel: interaction.channel, user: interaction.user },
+        xpResult.level
+      ).catch((error) => console.error('[checkin] Gagal kirim notif level up:', error));
+    }
     return;
   }
 
