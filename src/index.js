@@ -66,6 +66,7 @@ const {
   buildCheckinPanelComponents,
   formatRemaining,
 } = require('./idcard/checkinPanel');
+const { renderCheckinBanner } = require('./idcard/checkinBanner');
 
 const client = new Client({
   // GuildMembers (privileged) wajib diaktifkan juga di Discord Developer
@@ -692,9 +693,17 @@ async function handleRankCommand(interaction) {
 }
 
 async function handleCheckinCommand(interaction) {
+  const bannerBuffer = await renderCheckinBanner({ communityName: config.community.name }).catch((error) => {
+    console.error('[checkin] Gagal render banner:', error);
+    return null;
+  });
+  const attachmentName = 'checkin-banner.png';
+  const attachment = bannerBuffer ? new AttachmentBuilder(bannerBuffer, { name: attachmentName }) : null;
+
   await interaction.reply({
-    embeds: [buildCheckinPanelEmbed(interaction.guild, config.community.name)],
+    embeds: [buildCheckinPanelEmbed(interaction.guild, config.community.name, attachment ? attachmentName : null)],
     components: [buildCheckinPanelComponents()],
+    files: attachment ? [attachment] : [],
   });
 }
 
