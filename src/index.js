@@ -57,6 +57,7 @@ const {
   buildIdCardPanelEmbed,
   buildIdCardPanelComponents,
   buildIdCardModal,
+  buildIdCardResultEmbed,
 } = require('./idcard/idCardPanel');
 
 const client = new Client({
@@ -1055,8 +1056,10 @@ client.on('interactionCreate', async (interaction) => {
   }
 
   // ==== Tombol "🔍 Lihat ID Saya" di panel ID Card ====
+  // Balasan PUBLIK (bukan ephemeral) sesuai permintaan -- biar ID Card yang
+  // ditampilkan kelihatan oleh semua orang di channel itu, bukan cuma yang klik.
   if (interaction.isButton() && interaction.customId === IDCARD_BTN_VIEW_ID) {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply();
 
     const avatarUrl = interaction.user.displayAvatarURL({ extension: 'png', size: 256 });
     const attachment = await buildIdCardAttachment(interaction.guild, interaction.user.id, avatarUrl).catch(
@@ -1075,7 +1078,18 @@ client.on('interactionCreate', async (interaction) => {
       return;
     }
 
-    await interaction.editReply({ files: [attachment] });
+    const embed = buildIdCardResultEmbed({
+      guild: interaction.guild,
+      targetUser: interaction.user,
+      communityName: config.community.name,
+      attachmentName: attachment.name,
+    });
+
+    await interaction.editReply({
+      embeds: [embed],
+      files: [attachment],
+      components: [buildIdCardPanelComponents()],
+    });
     return;
   }
 
@@ -1184,8 +1198,10 @@ client.on('interactionCreate', async (interaction) => {
     }
 
     // ==== Submit modal "Buat ID Card" ====
+    // Balasan PUBLIK (bukan ephemeral) -- hasilnya harus kelihatan buat semua
+    // orang di channel itu, bukan cuma yang bikin.
     if (interaction.customId === IDCARD_MODAL_ID) {
-      await interaction.deferReply({ ephemeral: true });
+      await interaction.deferReply();
 
       idCardStore.upsertCard(interaction.guildId, interaction.user.id, {
         nama: interaction.fields.getTextInputValue(IDCARD_MODAL_NAMA_ID).trim(),
@@ -1208,7 +1224,18 @@ client.on('interactionCreate', async (interaction) => {
         return;
       }
 
-      await interaction.editReply({ content: '✅ ID Card kamu berhasil dibuat!', files: [attachment] });
+      const embed = buildIdCardResultEmbed({
+        guild: interaction.guild,
+        targetUser: interaction.user,
+        communityName: config.community.name,
+        attachmentName: attachment.name,
+      });
+
+      await interaction.editReply({
+        embeds: [embed],
+        files: [attachment],
+        components: [buildIdCardPanelComponents()],
+      });
       return;
     }
 
