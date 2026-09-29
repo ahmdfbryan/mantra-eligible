@@ -48,4 +48,9 @@ module.exports = {
   musicVoiceChannelId: process.env.MUSIC_VOICE_CHANNEL_ID || null,
   // Channel teks tempat panel kontrol musik (sticky) dipasang.
   musicPanelChannelId: process.env.MUSIC_PANEL_CHANNEL_ID || null,
+
+  // ==== Member ID Card + Level ====
+  // Channel tempat notif "Level Up!" (+ gambar) dikirim. Kosongkan supaya
+  // notif dikirim di channel yang sama tempat member itu chat.
+  levelUpChannelId: process.env.LEVEL_UP_CHANNEL_ID || null,
 };
