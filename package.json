@@ -1,0 +1,26 @@
+{
+  "name": "mantra-eligible-bot",
+  "version": "1.0.0",
+  "description": "Bot Discord verifikasi eligibility member komunitas Roblox MANTRA CREATIVE (minimal 14 hari bergabung)",
+  "main": "src/index.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/index.js",
+    "deploy": "node src/deploy-commands.js",
+    "check": "node --check src/index.js && node --check src/roblox.js && node --check src/ui.js && node --check src/panel.js && node --check src/store.js && node --check src/quiz.js && node --check src/quizStore.js && node --check src/boostCard.js && node --check src/boostStore.js && node --check src/deploy-commands.js && node --check src/config.js && node --check src/music/player.js && node --check src/music/panel.js && node --check src/music/panelStore.js && node --check src/music/resolve.js"
+  },
+  "engines": {
+    "node": ">=18.17"
+  },
+  "dependencies": {
+    "@discordjs/voice": "^0.19.2",
+    "@distube/ytdl-core": "^4.16.12",
+    "@napi-rs/canvas": "^1.0.9",
+    "discord.js": "^14.19.3",
+    "dotenv": "^16.4.5",
+    "libsodium-wrappers": "^0.8.4",
+    "opusscript": "^0.1.1",
+    "spotify-url-info": "^3.3.3",
+    "yt-search": "^2.13.1"
+  }
+}
