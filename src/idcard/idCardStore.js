@@ -1,16 +1,11 @@
 const fs = require('fs');
 const path = require('path');
 
-// Sistem level ala Arcane/MEE6: dapat XP random tiap kirim pesan (dengan
-// cooldown supaya tidak bisa di-spam buat naik level cepat), level dihitung
-// dari akumulasi total XP pakai kurva yang makin berat tiap naik level.
-// Struktur data: { "<guildId>": { "<userId>": { xp: number, lastMessageAt: number } } }
+// Penyimpanan sederhana berbasis file JSON (konsisten dengan store.js /
+// boostStore.js), buat nyimpen data ID Card per member per guild.
+// Struktur: { "<guildId>": { "counter": number, "members": { "<userId>": {...} } } }
 const DATA_DIR = path.join(__dirname, '..', '..', 'data');
-const DATA_FILE = path.join(DATA_DIR, 'levels.json');
-
-const XP_COOLDOWN_MS = 60_000; // 1 menit -- 1 pesan cuma dihitung XP-nya sekali per menit per user
-const XP_MIN = 15;
-const XP_MAX = 25;
+const DATA_FILE = path.join(DATA_DIR, 'id-cards.json');
 
 function ensureFile() {
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -23,7 +18,7 @@ function readAll() {
     const raw = fs.readFileSync(DATA_FILE, 'utf8');
     return raw.trim() ? JSON.parse(raw) : {};
   } catch (error) {
-    console.error('[levelStore] Gagal baca levels.json, mulai dari kosong:', error);
+    console.error('[idCardStore] Gagal baca id-cards.json, mulai dari kosong:', error);
     return {};
   }
 }
@@ -33,108 +28,57 @@ function writeAll(data) {
   fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), 'utf8');
 }
 
-/**
- * XP yang dibutuhkan buat naik DARI level `level` ke `level + 1` (kurva yang
- * makin berat tiap level, formula umum dipakai bot leveling Discord seperti
- * MEE6/Arcane: 5*L^2 + 50*L + 100).
- */
-function xpNeededForLevel(level) {
-  return 5 * level * level + 50 * level + 100;
-}
-
-/**
- * Hitung level dari total XP terkumpul, sekaligus progress-nya di level saat ini.
- * @returns {{ level: number, xpIntoLevel: number, xpForNextLevel: number, totalXp: number }}
- */
-function calculateLevelInfo(totalXp) {
-  let level = 0;
-  let remaining = totalXp;
-  let needed = xpNeededForLevel(level);
-  while (remaining >= needed) {
-    remaining -= needed;
-    level += 1;
-    needed = xpNeededForLevel(level);
+function ensureGuild(data, guildId) {
+  if (!data[guildId]) {
+    data[guildId] = { counter: 0, members: {} };
   }
-  return { level, xpIntoLevel: remaining, xpForNextLevel: needed, totalXp };
-}
-
-function getUserData(guildId, userId) {
-  const data = readAll();
-  return data[guildId]?.[userId] || { xp: 0, lastMessageAt: 0 };
+  return data[guildId];
 }
 
 /**
- * @returns {{ level: number, xpIntoLevel: number, xpForNextLevel: number, totalXp: number }}
+ * @returns {object|null} data ID card member ini kalau sudah pernah buat, null kalau belum.
  */
-function getUserLevel(guildId, userId) {
-  const user = getUserData(guildId, userId);
-  return calculateLevelInfo(user.xp);
+function getCard(guildId, userId) {
+  const data = readAll();
+  return data[guildId]?.members?.[userId] || null;
 }
 
 /**
- * Coba tambah XP untuk 1 pesan yang baru dikirim. Kalau masih kena cooldown,
- * tidak nambah apa-apa (return null). Non-fatal by design -- dipanggil dari
- * listener messageCreate buat SEMUA pesan member, jadi harus murah & aman.
- * @returns {{ leveledUp: boolean, level: number, totalXp: number } | null}
+ * Buat (atau update) ID card member. Kalau sudah pernah buat sebelumnya,
+ * idNo & createdAt yang lama dipertahankan (cuma field isian yang di-update) --
+ * konsisten dengan konsep "edit profil", bukan bikin identitas baru tiap submit.
+ * @returns {object} data ID card lengkap setelah disimpan
  */
-function tryAddXp(guildId, userId) {
+function upsertCard(guildId, userId, fields) {
   const data = readAll();
-  if (!data[guildId]) data[guildId] = {};
-  const user = data[guildId][userId] || { xp: 0, lastMessageAt: 0 };
+  const guildData = ensureGuild(data, guildId);
 
-  const now = Date.now();
-  if (now - (user.lastMessageAt || 0) < XP_COOLDOWN_MS) return null;
+  const existing = guildData.members[userId];
+  let idNo = existing?.idNo;
+  let createdAt = existing?.createdAt;
 
-  const beforeLevel = calculateLevelInfo(user.xp).level;
-  const gain = XP_MIN + Math.floor(Math.random() * (XP_MAX - XP_MIN + 1));
+  if (!idNo) {
+    guildData.counter += 1;
+    idNo = String(guildData.counter).padStart(5, '0');
+  }
+  if (!createdAt) {
+    createdAt = new Date().toISOString();
+  }
 
-  user.xp += gain;
-  user.lastMessageAt = now;
-  data[guildId][userId] = user;
+  const record = {
+    idNo,
+    nama: fields.nama,
+    jenisKelamin: fields.jenisKelamin,
+    domisili: fields.domisili,
+    citaCita: fields.citaCita,
+    hobi: fields.hobi,
+    createdAt,
+    updatedAt: new Date().toISOString(),
+  };
+
+  guildData.members[userId] = record;
   writeAll(data);
-
-  const afterInfo = calculateLevelInfo(user.xp);
-  return { leveledUp: afterInfo.level > beforeLevel, level: afterInfo.level, totalXp: user.xp };
+  return record;
 }
 
-/**
- * Leaderboard level (Top N) untuk 1 guild, diurut dari total XP terbesar.
- * @returns {Array<{ userId: string, level: number, totalXp: number }>}
- */
-function getLeaderboard(guildId, limit = 10) {
-  const data = readAll();
-  const guildData = data[guildId] || {};
-  return Object.entries(guildData)
-    .map(([userId, user]) => ({ userId, ...calculateLevelInfo(user.xp) }))
-    .sort((a, b) => b.totalXp - a.totalXp)
-    .slice(0, limit);
-}
-
-/**
- * Ranking 1 user di antara SEMUA member yang tercatat di guild itu (bukan
- * cuma Top N seperti getLeaderboard), diurut dari total XP terbesar.
- * @returns {{ rank: number, totalRanked: number, totalXp: number }}
- */
-function getUserRank(guildId, userId) {
-  const data = readAll();
-  const guildData = data[guildId] || {};
-  const sorted = Object.entries(guildData)
-    .map(([id, user]) => ({ userId: id, totalXp: user.xp || 0 }))
-    .sort((a, b) => b.totalXp - a.totalXp);
-
-  const totalRanked = sorted.length;
-  const index = sorted.findIndex((entry) => entry.userId === userId);
-  const totalXp = index >= 0 ? sorted[index].totalXp : guildData[userId]?.xp || 0;
-  const rank = index >= 0 ? index + 1 : totalRanked + 1;
-
-  return { rank, totalRanked: Math.max(totalRanked, rank), totalXp };
-}
-
-module.exports = {
-  getUserLevel,
-  tryAddXp,
-  getLeaderboard,
-  getUserRank,
-  calculateLevelInfo,
-  xpNeededForLevel,
-};
+module.exports = { getCard, upsertCard };
