@@ -44,6 +44,7 @@ const {
 const idCardStore = require('./idcard/idCardStore');
 const levelStore = require('./idcard/levelStore');
 const { renderIdCard } = require('./idcard/idCardCanvas');
+const { renderLevelUpCard } = require('./idcard/levelUpCard');
 const {
   BTN_CREATE_ID: IDCARD_BTN_CREATE_ID,
   BTN_VIEW_ID: IDCARD_BTN_VIEW_ID,
@@ -600,16 +601,40 @@ async function handleMusicPanelCommand(interaction) {
 
 // ==================== Member ID Card + Level ====================
 
-async function handleIdCardPanelCommand(interaction) {
-  if (!requireManageGuild(interaction)) return;
-  await interaction.deferReply({ ephemeral: true });
-
-  await interaction.channel.send({
+/**
+ * Command /idcard -- cukup tampilkan embed + tombol "Buat ID"/"Lihat ID
+ * Saya" tiap kali dipanggil (bukan panel permanen/sticky). Balasan PUBLIK
+ * (bukan ephemeral) supaya siapa pun di channel itu bisa ikut klik tombolnya.
+ */
+async function handleIdCardCommand(interaction) {
+  await interaction.reply({
     embeds: [buildIdCardPanelEmbed(config.community.name)],
     components: [buildIdCardPanelComponents()],
   });
+}
 
-  await interaction.editReply('✅ Panel "Member ID Card" dipasang di channel ini.');
+/**
+ * Render + kirim kartu "Level Up!" ke channel yang sudah di-set
+ * (LEVEL_UP_CHANNEL_ID), atau ke channel yang sama tempat member itu chat
+ * kalau tidak di-set. Non-fatal: dipanggil fire-and-forget dari messageCreate.
+ */
+async function announceLevelUp(message, level) {
+  const channel = config.levelUpChannelId
+    ? await message.guild.channels.fetch(config.levelUpChannelId).catch(() => null)
+    : message.channel;
+  if (!channel) return;
+
+  const buffer = await renderLevelUpCard({
+    avatarUrl: message.author.displayAvatarURL({ extension: 'png', size: 256 }),
+    username: message.author.username,
+    level,
+    communityName: config.community.name,
+  });
+
+  await channel.send({
+    content: `🎉 <@${message.author.id}> naik ke **Level ${level}**!`,
+    files: [new AttachmentBuilder(buffer, { name: `level-up-${message.author.id}.png` })],
+  });
 }
 
 /**
@@ -744,9 +769,9 @@ client.on('messageCreate', (message) => {
     try {
       const result = levelStore.tryAddXp(message.guildId, message.author.id);
       if (result?.leveledUp) {
-        message.channel
-          .send(`🎉 Selamat <@${message.author.id}>, kamu naik ke **Level ${result.level}**!`)
-          .catch((error) => console.error('[level] Gagal kirim notif level up:', error));
+        announceLevelUp(message, result.level).catch((error) =>
+          console.error('[level] Gagal kirim notif level up:', error)
+        );
       }
     } catch (error) {
       console.error('[level] Gagal proses XP:', error);
@@ -1007,8 +1032,8 @@ client.on('interactionCreate', async (interaction) => {
       return;
     }
 
-    if (interaction.commandName === 'idcardpanel') {
-      await handleIdCardPanelCommand(interaction);
+    if (interaction.commandName === 'idcard') {
+      await handleIdCardCommand(interaction);
       return;
     }
 
