@@ -10,14 +10,14 @@ const COLOR_PINK = 0xff2f9c;
  * Streak (judul, deskripsi singkat, "Cara kerja" berupa bullet list, footer
  * "Made by ..." + timestamp), tapi pewarnaan & branding ikut Mantra Creative.
  */
-function buildCheckinPanelEmbed(guild, communityName) {
+function buildCheckinPanelEmbed(guild, communityName, attachmentName) {
   const name = communityName || 'MANTRA CREATIVE';
   const iconURL = guild?.iconURL({ size: 128 }) || undefined;
 
-  return new EmbedBuilder()
+  const embed = new EmbedBuilder()
     .setColor(COLOR_PINK)
     .setAuthor({ name, iconURL })
-    .setTitle('🔥 Daily Check-in')
+    .setTitle('Daily Check-in')
     .setDescription('Klaim reward harian dengan menekan tombol di bawah.')
     .addFields({
       name: 'Cara kerja',
@@ -31,6 +31,12 @@ function buildCheckinPanelEmbed(guild, communityName) {
     .setThumbnail(iconURL || null)
     .setFooter({ text: `Made by ${name}` })
     .setTimestamp(new Date());
+
+  if (attachmentName) {
+    embed.setImage(`attachment://${attachmentName}`);
+  }
+
+  return embed;
 }
 
 function buildCheckinPanelComponents() {
