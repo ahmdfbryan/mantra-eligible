@@ -103,6 +103,16 @@ const commands = [
     .setName('musicpanel')
     .setDescription('Pasang panel kontrol musik (live, auto-update) di channel ini')
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
+  new SlashCommandBuilder()
+    .setName('idcardpanel')
+    .setDescription('Pasang panel "Member ID Card" (tombol Buat ID / Lihat ID Saya) di channel ini')
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
+  new SlashCommandBuilder()
+    .setName('rank')
+    .setDescription('Lihat level & XP kamu (atau member lain)')
+    .addUserOption((option) =>
+      option.setName('user').setDescription('Member yang mau dicek levelnya (default: kamu sendiri)').setRequired(false)
+    ),
 ].map((command) => command.toJSON());
 
 const rest = new REST({ version: '10' }).setToken(config.discordToken);
