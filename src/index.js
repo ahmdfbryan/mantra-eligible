@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits, PermissionFlagsBits } = require('discord.js');
+const { Client, GatewayIntentBits, PermissionFlagsBits, AttachmentBuilder } = require('discord.js');
 const config = require('./config');
 const { lookupMember, getGroupIconUrl, RobloxApiError } = require('./roblox');
 const {
@@ -41,6 +41,22 @@ const {
   buildTrackAddedEmbed,
   buildQueueEmbed,
 } = require('./music/panel');
+const idCardStore = require('./idcard/idCardStore');
+const levelStore = require('./idcard/levelStore');
+const { renderIdCard } = require('./idcard/idCardCanvas');
+const {
+  BTN_CREATE_ID: IDCARD_BTN_CREATE_ID,
+  BTN_VIEW_ID: IDCARD_BTN_VIEW_ID,
+  MODAL_ID: IDCARD_MODAL_ID,
+  MODAL_NAMA_ID: IDCARD_MODAL_NAMA_ID,
+  MODAL_GENDER_ID: IDCARD_MODAL_GENDER_ID,
+  MODAL_DOMISILI_ID: IDCARD_MODAL_DOMISILI_ID,
+  MODAL_CITACITA_ID: IDCARD_MODAL_CITACITA_ID,
+  MODAL_HOBI_ID: IDCARD_MODAL_HOBI_ID,
+  buildIdCardPanelEmbed,
+  buildIdCardPanelComponents,
+  buildIdCardModal,
+} = require('./idcard/idCardPanel');
 
 const client = new Client({
   // GuildMembers (privileged) wajib diaktifkan juga di Discord Developer
@@ -582,6 +598,60 @@ async function handleMusicPanelCommand(interaction) {
   await interaction.editReply('✅ Panel kontrol musik dipasang & live di channel ini.');
 }
 
+// ==================== Member ID Card + Level ====================
+
+async function handleIdCardPanelCommand(interaction) {
+  if (!requireManageGuild(interaction)) return;
+  await interaction.deferReply({ ephemeral: true });
+
+  await interaction.channel.send({
+    embeds: [buildIdCardPanelEmbed(config.community.name)],
+    components: [buildIdCardPanelComponents()],
+  });
+
+  await interaction.editReply('✅ Panel "Member ID Card" dipasang di channel ini.');
+}
+
+/**
+ * Render ID Card 1 member jadi attachment PNG siap dikirim. Balikin null
+ * (+ pesan alasan) kalau member belum pernah bikin ID.
+ */
+async function buildIdCardAttachment(guild, userId, avatarUrl) {
+  const card = idCardStore.getCard(guild.id, userId);
+  if (!card) return null;
+
+  const member = await guild.members.fetch(userId).catch(() => null);
+  const levelInfo = levelStore.getUserLevel(guild.id, userId);
+
+  const buffer = await renderIdCard({
+    avatarUrl,
+    idNo: card.idNo,
+    nama: card.nama,
+    jenisKelamin: card.jenisKelamin,
+    domisili: card.domisili,
+    citaCita: card.citaCita,
+    hobi: card.hobi,
+    joinedAt: member?.joinedAt || null,
+    createdAt: card.createdAt,
+    level: levelInfo.level,
+    xpIntoLevel: levelInfo.xpIntoLevel,
+    xpForNextLevel: levelInfo.xpForNextLevel,
+    communityName: config.community.name,
+  });
+
+  return new AttachmentBuilder(buffer, { name: `id-card-${userId}.png` });
+}
+
+async function handleRankCommand(interaction) {
+  const target = interaction.options.getUser('user') || interaction.user;
+  await interaction.deferReply({ ephemeral: true });
+
+  const levelInfo = levelStore.getUserLevel(interaction.guildId, target.id);
+  await interaction.editReply(
+    `📊 **${target.username}** -- Level **${levelInfo.level}** (${levelInfo.xpIntoLevel}/${levelInfo.xpForNextLevel} XP menuju level berikutnya, total ${levelInfo.totalXp} XP).`
+  );
+}
+
 /**
  * Jadwalkan repost panel supaya tetap jadi pesan paling bawah/terbaru
  * (sticky), dengan debounce supaya tidak spam saat chat lagi ramai.
@@ -665,6 +735,23 @@ function scheduleMusicStickyRepost(channel, guildId) {
 
 client.on('messageCreate', (message) => {
   if (!message.guild) return;
+
+  // ==== Level system: kasih XP buat pesan asli dari member (bukan bot) ====
+  // Non-fatal & murah (baca/tulis JSON kecil) -- ada cooldown 1 menit per
+  // user di dalam tryAddXp sendiri, jadi aman dipanggil tiap pesan tanpa
+  // takut spam XP.
+  if (!message.author.bot) {
+    try {
+      const result = levelStore.tryAddXp(message.guildId, message.author.id);
+      if (result?.leveledUp) {
+        message.channel
+          .send(`🎉 Selamat <@${message.author.id}>, kamu naik ke **Level ${result.level}**!`)
+          .catch((error) => console.error('[level] Gagal kirim notif level up:', error));
+      }
+    } catch (error) {
+      console.error('[level] Gagal proses XP:', error);
+    }
+  }
 
   // Sedang proses hapus+kirim-ulang panel di channel ini -> abaikan dulu,
   // supaya echo dari aksi kita sendiri tidak dianggap "pesan baru dari user".
@@ -920,6 +1007,50 @@ client.on('interactionCreate', async (interaction) => {
       return;
     }
 
+    if (interaction.commandName === 'idcardpanel') {
+      await handleIdCardPanelCommand(interaction);
+      return;
+    }
+
+    if (interaction.commandName === 'rank') {
+      await handleRankCommand(interaction);
+      return;
+    }
+
+    return;
+  }
+
+  // ==== Tombol "🪪 Buat ID" di panel ID Card -> buka modal isian data ====
+  // Sama seperti tombol "▶️ Play" musik, showModal HARUS jadi respons
+  // pertama, jadi ditangani terpisah sebelum handler tombol lainnya.
+  if (interaction.isButton() && interaction.customId === IDCARD_BTN_CREATE_ID) {
+    const existing = idCardStore.getCard(interaction.guildId, interaction.user.id);
+    await interaction.showModal(buildIdCardModal(existing));
+    return;
+  }
+
+  // ==== Tombol "🔍 Lihat ID Saya" di panel ID Card ====
+  if (interaction.isButton() && interaction.customId === IDCARD_BTN_VIEW_ID) {
+    await interaction.deferReply({ ephemeral: true });
+
+    const avatarUrl = interaction.user.displayAvatarURL({ extension: 'png', size: 256 });
+    const attachment = await buildIdCardAttachment(interaction.guild, interaction.user.id, avatarUrl).catch(
+      (error) => {
+        console.error('[idcard] Gagal render ID card:', error);
+        return undefined;
+      }
+    );
+
+    if (attachment === undefined) {
+      await interaction.editReply('❌ Gagal membuat gambar ID Card. Coba lagi beberapa saat.');
+      return;
+    }
+    if (!attachment) {
+      await interaction.editReply('ℹ️ Kamu belum punya ID Card. Klik tombol **🪪 Buat ID** dulu.');
+      return;
+    }
+
+    await interaction.editReply({ files: [attachment] });
     return;
   }
 
@@ -1024,6 +1155,35 @@ client.on('interactionCreate', async (interaction) => {
       await refreshMusicPanel(interaction.guildId).catch((error) =>
         console.error('[music] Gagal refresh panel musik setelah play via modal:', error)
       );
+      return;
+    }
+
+    // ==== Submit modal "Buat ID Card" ====
+    if (interaction.customId === IDCARD_MODAL_ID) {
+      await interaction.deferReply({ ephemeral: true });
+
+      idCardStore.upsertCard(interaction.guildId, interaction.user.id, {
+        nama: interaction.fields.getTextInputValue(IDCARD_MODAL_NAMA_ID).trim(),
+        jenisKelamin: interaction.fields.getTextInputValue(IDCARD_MODAL_GENDER_ID).trim(),
+        domisili: interaction.fields.getTextInputValue(IDCARD_MODAL_DOMISILI_ID).trim(),
+        citaCita: interaction.fields.getTextInputValue(IDCARD_MODAL_CITACITA_ID).trim(),
+        hobi: interaction.fields.getTextInputValue(IDCARD_MODAL_HOBI_ID).trim(),
+      });
+
+      const avatarUrl = interaction.user.displayAvatarURL({ extension: 'png', size: 256 });
+      const attachment = await buildIdCardAttachment(interaction.guild, interaction.user.id, avatarUrl).catch(
+        (error) => {
+          console.error('[idcard] Gagal render ID card setelah submit modal:', error);
+          return undefined;
+        }
+      );
+
+      if (!attachment) {
+        await interaction.editReply('✅ Data ID Card kamu tersimpan, tapi gagal generate gambarnya. Coba klik **🔍 Lihat ID Saya** lagi.');
+        return;
+      }
+
+      await interaction.editReply({ content: '✅ ID Card kamu berhasil dibuat!', files: [attachment] });
       return;
     }
 
