@@ -104,9 +104,8 @@ const commands = [
     .setDescription('Pasang panel kontrol musik (live, auto-update) di channel ini')
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
   new SlashCommandBuilder()
-    .setName('idcardpanel')
-    .setDescription('Pasang panel "Member ID Card" (tombol Buat ID / Lihat ID Saya) di channel ini')
-    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
+    .setName('idcard')
+    .setDescription('Tampilkan "Member ID Card" (tombol Buat ID / Lihat ID Saya)'),
   new SlashCommandBuilder()
     .setName('rank')
     .setDescription('Lihat level & XP kamu (atau member lain)')
