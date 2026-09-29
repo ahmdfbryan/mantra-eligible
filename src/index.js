@@ -1049,9 +1049,18 @@ client.on('interactionCreate', async (interaction) => {
   // ==== Tombol "🪪 Buat ID" di panel ID Card -> buka modal isian data ====
   // Sama seperti tombol "▶️ Play" musik, showModal HARUS jadi respons
   // pertama, jadi ditangani terpisah sebelum handler tombol lainnya.
+  // Sekali sudah punya ID, tombol ini tidak bisa dipakai lagi buat bikin
+  // ulang/edit -- cuma bisa lihat lewat "🔍 Lihat ID Saya".
   if (interaction.isButton() && interaction.customId === IDCARD_BTN_CREATE_ID) {
     const existing = idCardStore.getCard(interaction.guildId, interaction.user.id);
-    await interaction.showModal(buildIdCardModal(existing));
+    if (existing) {
+      await interaction.reply({
+        content: 'ℹ️ Kamu sudah punya ID Card dan tidak bisa membuat ulang. Klik **🔍 Lihat ID Saya** untuk melihatnya.',
+        ephemeral: true,
+      });
+      return;
+    }
+    await interaction.showModal(buildIdCardModal());
     return;
   }
 
