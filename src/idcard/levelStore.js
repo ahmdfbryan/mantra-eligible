@@ -111,6 +111,26 @@ function getLeaderboard(guildId, limit = 10) {
 }
 
 /**
+ * Tambah XP langsung dalam jumlah tertentu, TANPA cooldown (beda dari
+ * tryAddXp yang khusus buat XP chat per-menit). Dipakai untuk reward yang
+ * memang sengaja terjadi sekali per aksi, seperti klaim Daily Check-in.
+ * @returns {{ leveledUp: boolean, level: number, totalXp: number }}
+ */
+function addXp(guildId, userId, amount) {
+  const data = readAll();
+  if (!data[guildId]) data[guildId] = {};
+  const user = data[guildId][userId] || { xp: 0, lastMessageAt: 0 };
+
+  const beforeLevel = calculateLevelInfo(user.xp).level;
+  user.xp += amount;
+  data[guildId][userId] = user;
+  writeAll(data);
+
+  const afterInfo = calculateLevelInfo(user.xp);
+  return { leveledUp: afterInfo.level > beforeLevel, level: afterInfo.level, totalXp: user.xp };
+}
+
+/**
  * Ranking 1 user di antara SEMUA member yang tercatat di guild itu (bukan
  * cuma Top N seperti getLeaderboard), diurut dari total XP terbesar.
  * @returns {{ rank: number, totalRanked: number, totalXp: number }}
@@ -133,6 +153,7 @@ function getUserRank(guildId, userId) {
 module.exports = {
   getUserLevel,
   tryAddXp,
+  addXp,
   getLeaderboard,
   getUserRank,
   calculateLevelInfo,
