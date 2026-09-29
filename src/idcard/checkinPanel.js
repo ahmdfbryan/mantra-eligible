@@ -18,9 +18,9 @@ function buildCheckinPanelEmbed(guild, communityName, attachmentName) {
     .setColor(COLOR_PINK)
     .setAuthor({ name, iconURL })
     .setTitle('Daily Check-in')
-    .setDescription('Klaim reward harian dengan menekan tombol di bawah.')
+    .setDescription('Nikmati reward harian yang tersedia untukmu. Tekan tombol di bawah untuk melakukan klaim dan menerima reward.')
     .addFields({
-      name: 'Cara kerja',
+      name: '**Cara Kerja:**',
       value:
         `• Reward dasar: **${checkinStore.BASE_REWARD} XP** per check-in\n` +
         `• Check-in lagi besoknya (dalam ${checkinStore.MIN_HOURS_BETWEEN}-${checkinStore.STREAK_BREAK_HOURS} jam) untuk lanjutkan streak, reward naik **+${checkinStore.STREAK_BONUS} XP** per hari streak\n` +
