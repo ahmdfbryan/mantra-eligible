@@ -109,19 +109,21 @@ function buildIdCardModal(existing) {
 
 /**
  * Embed hasil ID Card (dibungkus embed ala referensi: icon server + nama
- * komunitas, "ID milik @user", gambar kartu di badan embed, footer "Made by
- * ... Dev Team" + timestamp) -- dipakai baik waktu submit modal "Buat ID"
- * maupun klik "Lihat ID Saya".
+ * komunitas, "ID milik @user", logo server di kanan (thumbnail), gambar
+ * kartu di badan embed, footer "Made by ..." + timestamp) -- dipakai baik
+ * waktu submit modal "Buat ID" maupun klik "Lihat ID Saya".
  */
 function buildIdCardResultEmbed({ guild, targetUser, communityName, attachmentName }) {
   const name = communityName || 'MANTRA CREATIVE';
+  const iconURL = guild.iconURL({ size: 128 }) || undefined;
   const embed = new EmbedBuilder()
     .setColor(COLOR_PINK)
-    .setAuthor({ name, iconURL: guild.iconURL({ size: 128 }) || undefined })
+    .setAuthor({ name, iconURL })
     .setTitle(`${name} ID Card`)
     .setDescription(`ID milik <@${targetUser.id}>`)
+    .setThumbnail(iconURL || null)
     .setImage(`attachment://${attachmentName}`)
-    .setFooter({ text: `Made by ${name} Dev Team` })
+    .setFooter({ text: `Made by ${name}` })
     .setTimestamp(new Date());
   return embed;
 }
