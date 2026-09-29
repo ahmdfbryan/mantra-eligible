@@ -649,6 +649,20 @@ async function announceLevelUp({ guild, channel: fallbackChannel, user }, level)
 }
 
 /**
+ * Kasih role "Verified" (LEVEL_VERIFIED_ROLE_ID) otomatis begitu member
+ * mencapai level minimal (default 10). Aman dipanggil berkali-kali --
+ * cuma nambah role kalau levelnya cukup DAN member belum punya role itu.
+ * Non-fatal: dipanggil fire-and-forget habis XP bertambah (chat & check-in).
+ */
+async function syncVerifiedRole(member, level) {
+  if (!config.levelVerifiedRoleId || !member) return;
+  if (level < config.levelVerifiedMinLevel) return;
+  if (member.roles.cache.has(config.levelVerifiedRoleId)) return;
+
+  await member.roles.add(config.levelVerifiedRoleId);
+}
+
+/**
  * Render ID Card 1 member jadi attachment PNG siap dikirim. Balikin null
  * (+ pesan alasan) kalau member belum pernah bikin ID.
  */
@@ -798,6 +812,11 @@ client.on('messageCreate', (message) => {
   if (!message.author.bot) {
     try {
       const result = levelStore.tryAddXp(message.guildId, message.author.id);
+      if (result) {
+        syncVerifiedRole(message.member, result.level).catch((error) =>
+          console.error('[level] Gagal kasih role Verified:', error)
+        );
+      }
       if (result?.leveledUp) {
         announceLevelUp(
           { guild: message.guild, channel: message.channel, user: message.author },
@@ -1165,6 +1184,11 @@ client.on('interactionCreate', async (interaction) => {
       ephemeral: true,
     });
 
+    if (xpResult) {
+      syncVerifiedRole(interaction.member, xpResult.level).catch((error) =>
+        console.error('[checkin] Gagal kasih role Verified:', error)
+      );
+    }
     if (xpResult?.leveledUp) {
       announceLevelUp(
         { guild: interaction.guild, channel: interaction.channel, user: interaction.user },
