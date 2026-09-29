@@ -648,6 +648,7 @@ async function buildIdCardAttachment(guild, userId, avatarUrl) {
 
   const member = await guild.members.fetch(userId).catch(() => null);
   const levelInfo = levelStore.getUserLevel(guild.id, userId);
+  const rankInfo = levelStore.getUserRank(guild.id, userId);
 
   const buffer = await renderIdCard({
     avatarUrl,
@@ -662,6 +663,9 @@ async function buildIdCardAttachment(guild, userId, avatarUrl) {
     level: levelInfo.level,
     xpIntoLevel: levelInfo.xpIntoLevel,
     xpForNextLevel: levelInfo.xpForNextLevel,
+    totalXp: levelInfo.totalXp,
+    rank: rankInfo.rank,
+    totalRanked: rankInfo.totalRanked,
     communityName: config.community.name,
   });
 
