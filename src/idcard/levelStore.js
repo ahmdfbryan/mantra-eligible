@@ -110,4 +110,31 @@ function getLeaderboard(guildId, limit = 10) {
     .slice(0, limit);
 }
 
-module.exports = { getUserLevel, tryAddXp, getLeaderboard, calculateLevelInfo, xpNeededForLevel };
+/**
+ * Ranking 1 user di antara SEMUA member yang tercatat di guild itu (bukan
+ * cuma Top N seperti getLeaderboard), diurut dari total XP terbesar.
+ * @returns {{ rank: number, totalRanked: number, totalXp: number }}
+ */
+function getUserRank(guildId, userId) {
+  const data = readAll();
+  const guildData = data[guildId] || {};
+  const sorted = Object.entries(guildData)
+    .map(([id, user]) => ({ userId: id, totalXp: user.xp || 0 }))
+    .sort((a, b) => b.totalXp - a.totalXp);
+
+  const totalRanked = sorted.length;
+  const index = sorted.findIndex((entry) => entry.userId === userId);
+  const totalXp = index >= 0 ? sorted[index].totalXp : guildData[userId]?.xp || 0;
+  const rank = index >= 0 ? index + 1 : totalRanked + 1;
+
+  return { rank, totalRanked: Math.max(totalRanked, rank), totalXp };
+}
+
+module.exports = {
+  getUserLevel,
+  tryAddXp,
+  getLeaderboard,
+  getUserRank,
+  calculateLevelInfo,
+  xpNeededForLevel,
+};
