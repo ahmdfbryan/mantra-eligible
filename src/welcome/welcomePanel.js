@@ -15,8 +15,10 @@ function buildWelcomeEmbed({ member, communityName, memberNumber }) {
   // username polos ("@username"), bukan mention beneran.
   return new EmbedBuilder()
     .setColor(COLOR_PINK)
-    .setTitle(`Selamat datang, @${member.user.username} di ${name}!`)
-    .setDescription(`Kamu member ke **#${memberNumber}**. Pastikan untuk membaca Rules & Guide Server di bawah ini.`);
+    .setTitle(`Selamat datang di ${name}!`)
+    .setDescription(
+      `Kamu <@${member.id}> member ke **#${memberNumber}**. Pastikan untuk membaca Rules & Guide Server di bawah ini.`
+    );
 }
 
 /**
