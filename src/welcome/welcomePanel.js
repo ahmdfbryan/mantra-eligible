@@ -12,8 +12,9 @@ function buildWelcomeEmbed({ member, communityName, memberNumber }) {
   const name = communityName || 'MANTRA CREATIVE';
   return new EmbedBuilder()
     .setColor(COLOR_PINK)
+    .setTitle('👋 Selamat Datang!')
     .setDescription(
-      `Selamat datang, <@${member.id}> di **${name}**!\n` +
+      `<@${member.id}>, selamat datang di **${name}**!\n` +
         `Kamu member ke **#${memberNumber}**. Pastikan untuk membaca Rules & Guide Server di bawah ini.`
     );
 }
