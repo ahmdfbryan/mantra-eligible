@@ -2,6 +2,10 @@
 // EmbedBuilder/komponen) supaya kontennya gampang diedit tanpa harus
 // ngoprek logic. Ada 2 bahasa: id (default, dikirim duluan) dan en (muncul
 // kalau tombol "Versi Bahasa Inggris" diklik).
+//
+// Tiap aturan punya `bullets` (array kalimat pendek, bukan 1 paragraf
+// panjang) supaya pas dirender jadi bullet list ala referensi, bukan blok
+// teks nyambung.
 
 const WELCOME_TEXT = {
   id: {
@@ -20,154 +24,228 @@ const WELCOME_TEXT = {
   },
 };
 
-const RULES_TITLE = {
-  id: '📜 Server Rules',
+// Baris kecil di atas judul besar embed Rules (dipasang lewat setAuthor).
+const RULES_AUTHOR = {
+  id: '📜 Peraturan Server',
   en: '📜 Server Rules',
 };
 
+// Judul besar embed Rules (dipasang lewat setTitle) -- diisi nama komunitas
+// pas dirender, lihat rulesPanel.js.
+const RULES_TITLE_TEMPLATE = {
+  id: (name) => `Aturan di ${name}`,
+  en: (name) => `Rules of ${name}`,
+};
+
 const RULES_INTRO = {
-  id: 'Berikut peraturan resmi yang berlaku di **Mantra Creative**. Wajib dibaca dan dipatuhi oleh seluruh member tanpa terkecuali.',
-  en: 'Here are the official rules of **Mantra Creative**. All members are required to read and follow them without exception.',
+  id: 'Wajib dibaca dan dipatuhi oleh seluruh member tanpa terkecuali.',
+  en: 'Required reading for every member -- no exceptions.',
 };
 
 const RULES_NOTE = {
-  id: 'Rules dapat diperbarui sewaktu-waktu untuk menjaga Mantra Creative tetap menjadi komunitas yang aman, nyaman, dan menyenangkan untuk semua.',
-  en: 'These rules may be updated at any time to keep Mantra Creative a safe, comfortable, and enjoyable community for everyone.',
+  id: 'Rules dapat diperbarui sewaktu-waktu untuk menjaga komunitas ini tetap aman, nyaman, dan menyenangkan untuk semua.',
+  en: 'These rules may be updated at any time to keep this community a safe, comfortable, and enjoyable place for everyone.',
 };
 
 const RULES = [
   {
     id: {
       title: 'Saling Menghargai',
-      body:
-        'Setiap member di Mantra Creative berhak diperlakukan dengan hormat, apa pun latar belakang, pendapat, atau cara mereka bermain. Hindari segala bentuk harassment, bullying, provokasi, ejekan, maupun penghinaan terhadap member lain -- baik secara langsung, lewat DM, maupun sindiran di channel publik. Perbedaan pendapat itu wajar, sampaikan saja dengan cara yang dewasa dan tanpa menyerang pribadi seseorang.',
+      bullets: [
+        'Perlakukan semua member dengan baik, penuh rasa hormat, empati, dan toleransi.',
+        'No harassment, bullying, provokasi, atau penghinaan terhadap member lain -- baik secara langsung, lewat DM, maupun sindiran di channel publik.',
+        'Perbedaan pendapat itu wajar, sampaikan dengan cara yang dewasa tanpa menyerang pribadi seseorang.',
+      ],
     },
     en: {
       title: 'Mutual Respect',
-      body:
-        'Every member of Mantra Creative deserves to be treated with respect, regardless of background, opinion, or play style. Avoid any form of harassment, bullying, provocation, or insults toward other members -- whether direct, through DMs, or passive-aggressive remarks in public channels. Disagreements happen, just keep them civil and never attack someone personally.',
+      bullets: [
+        'Treat every member kindly, with respect, empathy, and tolerance.',
+        'No harassment, bullying, provocation, or insults toward other members -- whether direct, through DMs, or passive-aggressive remarks in public channels.',
+        "Disagreements happen, just keep them civil and never attack someone personally.",
+      ],
     },
   },
   {
     id: {
       title: 'Gunakan Channel Sesuai Fungsinya',
-      body:
-        'Setiap channel di server ini dibuat dengan fungsinya masing-masing. Pastikan kamu posting pesan, gambar, pertanyaan, atau informasi di channel yang memang diperuntukkan untuk itu, supaya server tetap rapi, mudah diikuti, dan nyaman dipakai oleh seluruh member. Kalau ragu channel mana yang cocok, jangan sungkan bertanya ke Admin atau cek deskripsi channel-nya dulu.',
+      bullets: [
+        'Setiap channel punya fungsinya masing-masing -- posting sesuai tempatnya ya.',
+        'Supaya server tetap rapi, mudah diikuti, dan nyaman dipakai seluruh member.',
+        'Masih ragu channel mana yang cocok? Tanya saja ke Admin atau cek deskripsi channel-nya.',
+      ],
     },
     en: {
       title: 'Use Channels Properly',
-      body:
-        "Every channel here has its own specific purpose. Make sure you post messages, images, questions, or information in the channel they actually belong to, so the server stays organized and pleasant for everyone to use. If you're not sure which channel fits, feel free to ask an Admin or check the channel description first.",
+      bullets: [
+        'Every channel has its own purpose -- post in the one it actually belongs to.',
+        'Keeps the server organized, easy to follow, and pleasant for everyone.',
+        "Not sure which channel fits? Ask an Admin or check the channel description first.",
+      ],
     },
   },
   {
     id: {
       title: 'No Spam & Flood',
-      body:
-        'Hindari mengirim pesan berulang-ulang, mention berlebihan ke member atau role lain, spam sticker/emoji, maupun konten yang sengaja dibuat untuk mengganggu alur chat. Flooding bikin channel susah dibaca dan mengganggu kenyamanan member lain yang sedang ngobrol atau butuh informasi penting.',
+      bullets: [
+        'Hindari mengirim pesan berulang-ulang atau yang tidak diinginkan.',
+        'Jangan mention berlebihan ke member/role lain, spam sticker, maupun emoji.',
+        'Flooding bikin channel susah dibaca dan mengganggu member lain yang butuh info penting.',
+      ],
     },
     en: {
       title: 'No Spam & Flood',
-      body:
-        "Avoid repeated messages, excessive mentions of members or roles, sticker/emoji spam, or any content made specifically to disrupt chat flow. Flooding makes channels hard to follow and gets in the way of members who are chatting or looking for important information.",
+      bullets: [
+        'Avoid sending repeated or unwanted messages.',
+        "Don't over-mention members/roles, or spam stickers and emojis.",
+        'Flooding makes channels hard to follow and gets in the way of members who need important info.',
+      ],
     },
   },
   {
     id: {
       title: 'No Scam & Phishing',
-      body:
-        'Dilarang keras menyebarkan link scam, phishing, fake giveaway, atau tautan mencurigakan dalam bentuk apa pun -- baik lewat pesan, DM, maupun status. Pelanggaran ini sangat serius karena bisa merugikan member lain secara finansial maupun data pribadi, dan akan ditindak tegas oleh tim Admin.',
+      bullets: [
+        'Dilarang keras menyebarkan link scam, phishing, atau fake giveaway dalam bentuk apa pun.',
+        'Jangan membagikan tautan mencurigakan, baik lewat pesan, DM, maupun status.',
+        'Pelanggaran ini serius karena bisa merugikan member lain secara finansial maupun data pribadi.',
+      ],
     },
     en: {
       title: 'No Scam & Phishing',
-      body:
-        'Sharing scam links, phishing attempts, fake giveaways, or any suspicious links is strictly forbidden -- whether through messages, DMs, or status updates. This is treated as a serious violation since it can financially harm other members or compromise their personal data, and will be dealt with firmly by the Admin team.',
+      bullets: [
+        'Sharing scam links, phishing attempts, or fake giveaways is strictly forbidden.',
+        "Don't share suspicious links through messages, DMs, or status updates.",
+        'Treated as a serious violation since it can financially harm others or expose their personal data.',
+      ],
     },
   },
   {
     id: {
       title: 'No Unapproved Promotion',
-      body:
-        'Promosi server lain, produk, jasa, akun media sosial, atau layanan apa pun tidak diperbolehkan tanpa izin resmi dari staff terlebih dahulu. Kalau kamu punya sesuatu yang ingin dipromosikan, hubungi Admin dulu untuk mendapatkan persetujuan sebelum membagikannya di server.',
+      bullets: [
+        'Promosi server lain, produk, jasa, atau akun media sosial tidak diperbolehkan tanpa izin.',
+        'Hubungi Admin dulu kalau ada sesuatu yang ingin kamu promosikan di server.',
+        'Promosi tanpa izin akan dihapus dan bisa berujung sanksi.',
+      ],
     },
     en: {
       title: 'No Unapproved Promotion',
-      body:
-        "Promoting other servers, products, services, or social media accounts is not allowed without official approval from staff. If there's something you'd like to promote, reach out to an Admin first to get permission before sharing it in the server.",
+      bullets: [
+        'Promoting other servers, products, services, or social accounts needs approval first.',
+        "Got something to promote? Reach out to an Admin before sharing it.",
+        'Unapproved promotion will be removed and may lead to further action.',
+      ],
     },
   },
   {
     id: {
       title: 'Keep It Appropriate',
-      body:
-        'Konten NSFW, unsur seksual, gore, kekerasan eksplisit, maupun konten lain yang tidak pantas sama sekali tidak diperbolehkan di server ini, di channel manapun. Mantra Creative adalah komunitas yang terbuka untuk berbagai kalangan, jadi mari jaga suasana tetap nyaman dan aman untuk semua.',
+      bullets: [
+        'Konten NSFW, seksual, gore, atau kekerasan eksplisit sama sekali tidak diperbolehkan.',
+        'Berlaku di channel manapun, tanpa pengecualian.',
+        'Mantra Creative terbuka untuk berbagai kalangan, mari jaga suasana tetap nyaman untuk semua.',
+      ],
     },
     en: {
       title: 'Keep It Appropriate',
-      body:
-        "NSFW content, sexual content, gore, explicit violence, or any other inappropriate material is not allowed anywhere in this server. Mantra Creative is a community open to all kinds of people, so let's keep the atmosphere safe and comfortable for everyone.",
+      bullets: [
+        'NSFW content, sexual content, gore, or explicit violence is not allowed at all.',
+        'Applies to every channel, no exceptions.',
+        "This community is open to all kinds of people, so let's keep it comfortable for everyone.",
+      ],
     },
   },
   {
     id: {
       title: 'Fair Play',
-      body:
-        'Dilarang menggunakan exploit, cheat, script berbahaya, bug abuse, atau cara curang lainnya yang dapat merusak pengalaman bermain member lain. Mantra Creative menjunjung tinggi permainan yang adil -- semua orang berhak menikmati pengalaman yang sama tanpa dirugikan oleh kecurangan.',
+      bullets: [
+        'Dilarang menggunakan exploit, cheat, script berbahaya, atau bug abuse.',
+        'Cara curang apa pun yang merusak pengalaman bermain member lain tidak ditoleransi.',
+        'Semua orang berhak menikmati pengalaman yang sama dan adil.',
+      ],
     },
     en: {
       title: 'Fair Play',
-      body:
-        "Using exploits, cheats, malicious scripts, bug abuse, or any other unfair methods that ruin other members' experience is not allowed. Mantra Creative values fair play -- everyone deserves an equal experience without being disadvantaged by cheating.",
+      bullets: [
+        'Using exploits, cheats, malicious scripts, or bug abuse is not allowed.',
+        "Any unfair method that ruins other members' experience will not be tolerated.",
+        'Everyone deserves an equal, fair experience.',
+      ],
     },
   },
   {
     id: {
       title: 'Respect Admin',
-      body:
-        'Keputusan yang diambil oleh tim Admin dibuat demi menjaga kenyamanan bersama, jadi mohon dihormati. Kalau kamu merasa ada keputusan yang kurang tepat atau mengalami perlakuan yang tidak nyaman, sampaikan secara baik-baik lewat ticket/DM ke Admin, bukan lewat debat terbuka di channel publik.',
+      bullets: [
+        'Hormati keputusan yang diambil tim Admin -- dibuat demi kenyamanan bersama.',
+        'Kalau merasa ada keputusan yang kurang tepat, sampaikan baik-baik lewat ticket/DM.',
+        'Hindari debat terbuka soal keputusan Admin di channel publik.',
+      ],
     },
     en: {
       title: 'Respect Admin',
-      body:
-        "Decisions made by the Admin team are meant to keep things comfortable for everyone, so please respect them. If you feel a decision was unfair or you've had an uncomfortable experience, raise it politely through a ticket or DM to an Admin, not through public arguments in a channel.",
+      bullets: [
+        'Respect decisions made by the Admin team -- they exist to keep things comfortable for everyone.',
+        'Feel a decision was unfair? Raise it politely through a ticket or DM.',
+        "Avoid public arguments about Admin decisions in a channel.",
+      ],
     },
   },
   {
     id: {
       title: 'Jaga Privasi',
-      body:
-        'Jangan membagikan informasi pribadi -- baik milikmu sendiri maupun orang lain -- seperti nomor telepon, alamat, akun pribadi, atau data sensitif lainnya tanpa izin. Privasi adalah hal penting, dan Mantra Creative berkomitmen menjaga keamanan seluruh membernya.',
+      bullets: [
+        'Jangan membagikan informasi pribadi milikmu sendiri maupun orang lain tanpa izin.',
+        'Termasuk nomor telepon, alamat, akun pribadi, atau data sensitif lainnya.',
+        'Privasi itu penting -- komunitas ini berkomitmen menjaga keamanan seluruh membernya.',
+      ],
     },
     en: {
       title: 'Protect Privacy',
-      body:
-        "Don't share personal information -- yours or anyone else's -- such as phone numbers, addresses, personal accounts, or other sensitive data without consent. Privacy matters, and Mantra Creative is committed to keeping every member's information safe.",
+      bullets: [
+        "Don't share personal information -- yours or anyone else's -- without consent.",
+        'Includes phone numbers, addresses, personal accounts, or other sensitive data.',
+        "Privacy matters -- this community is committed to keeping every member's info safe.",
+      ],
     },
   },
   {
     id: {
       title: 'Use Common Sense',
-      body:
-        'Tidak semua situasi bisa dituliskan satu per satu dalam rules ini. Kalau kamu merasa ragu, gunakan akal sehat: jika sesuatu berpotensi merugikan, mengganggu, atau membuat member lain tidak nyaman, sebaiknya jangan dilakukan. Kalau masih ragu, tanya dulu ke Admin.',
+      bullets: [
+        'Tidak semua situasi bisa dituliskan satu per satu dalam rules ini.',
+        'Kalau ragu, gunakan akal sehat: jika berpotensi merugikan atau mengganggu, jangan dilakukan.',
+        'Masih ragu? Tanya dulu ke Admin sebelum bertindak.',
+      ],
     },
     en: {
       title: 'Use Common Sense',
-      body:
-        "Not every situation can be written down in these rules one by one. When in doubt, use common sense: if something could potentially harm, disrupt, or make other members uncomfortable, just don't do it. Still unsure? Ask an Admin first.",
+      bullets: [
+        "Not every situation can be written down in these rules one by one.",
+        "When in doubt, use common sense: if it could harm or disrupt others, don't do it.",
+        'Still unsure? Ask an Admin first.',
+      ],
     },
   },
   {
     id: {
       title: 'Enforcement',
-      body:
-        'Pelanggaran terhadap rules di atas akan ditindak sesuai tingkat keseriusannya, mulai dari warning, mute, kick, hingga ban permanen. Tim Admin berhak mengambil tindakan yang dianggap perlu demi menjaga Mantra Creative tetap menjadi tempat yang aman dan nyaman untuk semua.',
+      bullets: [
+        'Pelanggaran ditindak sesuai tingkat keseriusannya.',
+        'Mulai dari warning, mute, kick, hingga ban permanen.',
+        'Tim Admin berhak mengambil tindakan yang dianggap perlu demi menjaga kenyamanan bersama.',
+      ],
     },
     en: {
       title: 'Enforcement',
-      body:
-        'Violations of the rules above will be handled according to their severity, ranging from a warning, mute, or kick, up to a permanent ban. The Admin team reserves the right to take whatever action is deemed necessary to keep Mantra Creative a safe and comfortable place for everyone.',
+      bullets: [
+        'Violations are handled according to their severity.',
+        'Ranging from a warning, mute, or kick, up to a permanent ban.',
+        'The Admin team reserves the right to take whatever action is deemed necessary.',
+      ],
     },
   },
 ];
 
-module.exports = { WELCOME_TEXT, RULES_TITLE, RULES_INTRO, RULES_NOTE, RULES };
+module.exports = { WELCOME_TEXT, RULES_AUTHOR, RULES_TITLE_TEMPLATE, RULES_INTRO, RULES_NOTE, RULES };
