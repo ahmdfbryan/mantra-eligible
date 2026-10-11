@@ -126,6 +126,10 @@ const commands = [
     .setName('takerole')
     .setDescription('Pasang panel "Take Role" (pilih gender & game favorit) di channel ini')
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
+  new SlashCommandBuilder()
+    .setName('rules')
+    .setDescription('Pasang panel "Server Rules" (gif + embed + tombol versi Bahasa Inggris) di channel ini')
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
 ].map((command) => command.toJSON());
 
 const rest = new REST({ version: '10' }).setToken(config.discordToken);
