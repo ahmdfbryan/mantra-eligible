@@ -1043,7 +1043,7 @@ async function handleRulesCommand(interaction) {
 
   await interaction.channel.send({
     files: [gifAttachment],
-    embeds: [buildWelcomeTextEmbed('id'), buildServerRulesEmbed('id')],
+    embeds: [buildWelcomeTextEmbed('id'), buildServerRulesEmbed('id', config.community.name)],
     components: [buildRulesComponents()],
   });
   await interaction.reply({ content: '✅ Panel Rules sudah dipasang di channel ini.', ephemeral: true });
@@ -1384,7 +1384,7 @@ client.on('interactionCreate', async (interaction) => {
   // (versi ID) di channel tidak berubah.
   if (interaction.isButton() && interaction.customId === RULES_BTN_LANG_EN) {
     await interaction.reply({
-      embeds: [buildWelcomeTextEmbed('en'), buildServerRulesEmbed('en')],
+      embeds: [buildWelcomeTextEmbed('en'), buildServerRulesEmbed('en', config.community.name)],
       ephemeral: true,
     });
     return;
