@@ -58,4 +58,12 @@ module.exports = {
   // (default level 10). Kosongkan LEVEL_VERIFIED_ROLE_ID untuk mematikan fitur ini.
   levelVerifiedRoleId: process.env.LEVEL_VERIFIED_ROLE_ID || '1549779005945684078',
   levelVerifiedMinLevel: Number(process.env.LEVEL_VERIFIED_MIN_LEVEL || 10),
+
+  // ==== Welcome Card ====
+  // Channel tempat kartu + embed welcome dikirim tiap ada member baru join.
+  // WAJIB diisi -- kalau kosong, fitur welcome tidak aktif (cuma di-log).
+  welcomeChannelId: process.env.WELCOME_CHANNEL_ID || null,
+  // Channel yang dituju tombol "📜 Rules" dan "🎭 Take Role" di embed welcome.
+  welcomeRulesChannelId: process.env.WELCOME_RULES_CHANNEL_ID || '1546874949690728545',
+  welcomeTakeRoleChannelId: process.env.WELCOME_TAKE_ROLE_CHANNEL_ID || '1546890906475696188',
 };
