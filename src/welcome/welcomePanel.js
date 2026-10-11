@@ -3,25 +3,19 @@ const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('
 const COLOR_PINK = 0xff2f9c;
 
 /**
- * Embed keterangan welcome -- dikirim BERSAMA gambar welcome card (gambar =
- * attachment terpisah lewat setImage, attachmentName harus sama dengan nama
- * file di AttachmentBuilder).
+ * Embed keterangan welcome -- TIDAK berisi gambar (gambar welcome card
+ * dikirim terpisah sebagai attachment biasa, bukan lewat setImage, supaya
+ * tidak "nempel" jadi 1 kotak sama teks) dan TIDAK ada footer/timestamp,
+ * biar bersih kayak referensi.
  */
-function buildWelcomeEmbed({ member, communityName, memberNumber, attachmentName }) {
+function buildWelcomeEmbed({ member, communityName, memberNumber }) {
   const name = communityName || 'MANTRA CREATIVE';
-  const embed = new EmbedBuilder()
+  return new EmbedBuilder()
     .setColor(COLOR_PINK)
     .setDescription(
       `Selamat datang, <@${member.id}> di **${name}**!\n` +
         `Kamu member ke **#${memberNumber}**. Pastikan untuk membaca Rules & Guide Server di bawah ini.`
-    )
-    .setTimestamp(new Date());
-
-  if (attachmentName) {
-    embed.setImage(`attachment://${attachmentName}`);
-  }
-
-  return embed;
+    );
 }
 
 /**
