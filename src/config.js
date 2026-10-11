@@ -80,4 +80,12 @@ module.exports = {
     pubg: process.env.ROLE_GAME_PUBG || '1558938735658139659',
     freeFire: process.env.ROLE_GAME_FF || '1558939013094707200',
   },
+  // Emoji custom server (sudah di-upload di Mantra Creative) buat ikon
+  // tombol & teks di panel Take Role, ganti emoji unicode biasa.
+  gameEmojis: {
+    roblox: process.env.EMOJI_GAME_ROBLOX || '1558945799495225405',
+    mobileLegends: process.env.EMOJI_GAME_ML || '1558946488854384681',
+    pubg: process.env.EMOJI_GAME_PUBG || '1558946583008256061',
+    freeFire: process.env.EMOJI_GAME_FF || '1558946703527256078',
+  },
 };
