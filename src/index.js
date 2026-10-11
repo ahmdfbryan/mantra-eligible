@@ -951,7 +951,6 @@ async function sendWelcomeCard(member, { channelId } = {}) {
     member,
     communityName: config.community.name,
     memberNumber,
-    attachmentName,
   });
   const components = buildWelcomeComponents({
     guildId: member.guild.id,
