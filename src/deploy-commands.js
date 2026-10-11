@@ -122,6 +122,10 @@ const commands = [
       option.setName('user').setDescription('Member yang mau disimulasikan join (default: kamu sendiri)').setRequired(false)
     )
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
+  new SlashCommandBuilder()
+    .setName('takerole')
+    .setDescription('Pasang panel "Take Role" (pilih gender & game favorit) di channel ini')
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
 ].map((command) => command.toJSON());
 
 const rest = new REST({ version: '10' }).setToken(config.discordToken);
