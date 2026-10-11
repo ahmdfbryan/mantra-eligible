@@ -66,4 +66,21 @@ module.exports = {
   // Channel yang dituju tombol "📜 Rules" dan "🎭 Take Role" di embed welcome.
   welcomeRulesChannelId: process.env.WELCOME_RULES_CHANNEL_ID || '1546874949690728545',
   welcomeTakeRoleChannelId: process.env.WELCOME_TAKE_ROLE_CHANNEL_ID || '1546890906475696188',
+
+  // ==== Take Role ====
+  // Role gender (saling eksklusif -- ambil satu otomatis lepas yang lain).
+  genderRoles: {
+    boys: process.env.ROLE_MC_BOYS || '1546892185558056960',
+    girls: process.env.ROLE_MC_GIRLS || '1546892258572501042',
+  },
+  // Role game favorit (boleh ambil lebih dari satu, independen satu sama lain).
+  // PERHATIAN: ROLE_GAME_PUBG masih sama persis dengan ROLE_GAME_ML (kemungkinan
+  // salah ketik waktu dikasih ID-nya) -- ganti nilainya di .env begitu dapat ID
+  // role PUBG yang benar.
+  gameRoles: {
+    roblox: process.env.ROLE_GAME_ROBLOX || '1558938545371222076',
+    mobileLegends: process.env.ROLE_GAME_ML || '1558938383181553836',
+    pubg: process.env.ROLE_GAME_PUBG || '1558938383181553836',
+    freeFire: process.env.ROLE_GAME_FF || '1558939013094707200',
+  },
 };
