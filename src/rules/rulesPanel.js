@@ -47,7 +47,7 @@ function buildServerRulesEmbed(lang, communityName) {
     const content = rule[safeLang] || rule.id;
     embed.addFields({
       name: '​',
-      value: `### \`${label} ${index + 1}\` -- ${content.title}\n${content.body}`,
+      value: `### \`${label} ${index + 1}\` ${content.title}\n${content.body}`,
     });
   });
 
