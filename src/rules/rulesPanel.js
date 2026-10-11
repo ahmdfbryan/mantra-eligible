@@ -25,12 +25,12 @@ function buildWelcomeTextEmbed(lang) {
  *  - author kecil "📜 Peraturan Server" di atas judul besar
  *  - judul besar "Aturan di <nama komunitas>"
  *  - tiap aturan = 1 field TANPA nama (field name dikosongkan pakai
- *    zero-width space) supaya seluruh isinya (badge + heading + bullet)
- *    bisa diatur sendiri lewat markdown di value-nya:
- *      `Aturan N`          <- badge kecil (inline code = pill abu-abu)
- *      ### Judul Aturan    <- heading gede/bold (markdown heading level 3)
- *      - bullet 1          <- bullet list beneran, bukan paragraf nyambung
- *      - bullet 2
+ *    zero-width space) supaya seluruh isinya diatur sendiri lewat markdown
+ *    di value-nya:
+ *      ### `Aturan N` -- Judul Aturan   <- "Aturan N" (gaya badge/code) DAN
+ *                                          judulnya jadi 1 heading gede
+ *                                          (markdown heading level 3)
+ *      Paragraf penjelasan ...          <- teks biasa di bawahnya
  */
 function buildServerRulesEmbed(lang, communityName) {
   const safeLang = lang === 'en' ? 'en' : 'id';
@@ -45,10 +45,9 @@ function buildServerRulesEmbed(lang, communityName) {
 
   RULES.forEach((rule, index) => {
     const content = rule[safeLang] || rule.id;
-    const bullets = content.bullets.map((line) => `- ${line}`).join('\n');
     embed.addFields({
       name: '​',
-      value: `\`${label} ${index + 1}\`\n### ${content.title}\n${bullets}`,
+      value: `### \`${label} ${index + 1}\` -- ${content.title}\n${content.body}`,
     });
   });
 
