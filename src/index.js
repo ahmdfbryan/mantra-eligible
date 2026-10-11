@@ -80,6 +80,15 @@ const {
   buildGenderRow,
   buildGameRow,
 } = require('./roles/rolePanel');
+const path = require('path');
+const {
+  BTN_LANG_EN: RULES_BTN_LANG_EN,
+  buildWelcomeTextEmbed,
+  buildServerRulesEmbed,
+  buildRulesComponents,
+} = require('./rules/rulesPanel');
+
+const RULES_GIF_PATH = path.join(__dirname, '..', 'assets', 'rules-banner.gif');
 
 const client = new Client({
   // GuildMembers (privileged) wajib diaktifkan juga di Discord Developer
@@ -1023,6 +1032,23 @@ async function handleTakeRoleCommand(interaction) {
   await interaction.reply({ content: '✅ Panel Take Role sudah dipasang di channel ini.', ephemeral: true });
 }
 
+/**
+ * Command /rules -- pasang panel Server Rules: GIF banner di atas, lalu
+ * embed "Welcome" + embed "Server Rules" (11 aturan), + tombol versi
+ * Bahasa Inggris. Dikirim sebagai pesan biasa (channel.send), bukan
+ * balasan interaction, sama kayak /takerole.
+ */
+async function handleRulesCommand(interaction) {
+  const gifAttachment = new AttachmentBuilder(RULES_GIF_PATH, { name: 'rules-banner.gif' });
+
+  await interaction.channel.send({
+    files: [gifAttachment],
+    embeds: [buildWelcomeTextEmbed('id'), buildServerRulesEmbed('id')],
+    components: [buildRulesComponents()],
+  });
+  await interaction.reply({ content: '✅ Panel Rules sudah dipasang di channel ini.', ephemeral: true });
+}
+
 // Role gender saling eksklusif -- ambil salah satu otomatis lepas yang lain.
 const GENDER_ROLE_BY_BUTTON = {
   [BTN_GENDER_BOYS]: () => config.genderRoles.boys,
@@ -1289,6 +1315,11 @@ client.on('interactionCreate', async (interaction) => {
       return;
     }
 
+    if (interaction.commandName === 'rules') {
+      await handleRulesCommand(interaction);
+      return;
+    }
+
     return;
   }
 
@@ -1344,6 +1375,17 @@ client.on('interactionCreate', async (interaction) => {
       embeds: [embed],
       files: [attachment],
       components: [buildIdCardPanelComponents()],
+    });
+    return;
+  }
+
+  // ==== Tombol "🇬🇧 Versi Bahasa Inggris" di panel Rules ====
+  // Ephemeral -- cuma yang klik yang lihat versi Inggrisnya, panel aslinya
+  // (versi ID) di channel tidak berubah.
+  if (interaction.isButton() && interaction.customId === RULES_BTN_LANG_EN) {
+    await interaction.reply({
+      embeds: [buildWelcomeTextEmbed('en'), buildServerRulesEmbed('en')],
+      ephemeral: true,
     });
     return;
   }
