@@ -74,13 +74,10 @@ module.exports = {
     girls: process.env.ROLE_MC_GIRLS || '1546892258572501042',
   },
   // Role game favorit (boleh ambil lebih dari satu, independen satu sama lain).
-  // PERHATIAN: ROLE_GAME_PUBG masih sama persis dengan ROLE_GAME_ML (kemungkinan
-  // salah ketik waktu dikasih ID-nya) -- ganti nilainya di .env begitu dapat ID
-  // role PUBG yang benar.
   gameRoles: {
     roblox: process.env.ROLE_GAME_ROBLOX || '1558938545371222076',
     mobileLegends: process.env.ROLE_GAME_ML || '1558938383181553836',
-    pubg: process.env.ROLE_GAME_PUBG || '1558938383181553836',
+    pubg: process.env.ROLE_GAME_PUBG || '1558938735658139659',
     freeFire: process.env.ROLE_GAME_FF || '1558939013094707200',
   },
 };
