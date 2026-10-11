@@ -3,7 +3,7 @@ const path = require('path');
 const { createCanvas, loadImage } = require('@napi-rs/canvas');
 
 const WIDTH = 1000;
-const HEIGHT = 580;
+const HEIGHT = 630;
 
 // Palet hitam + pink/magenta MANTRA CREATIVE, sama kayak idCardCanvas.js /
 // boostCard.js / levelUpCard.js, biar semua gambar yang dikirim bot kelihatan
@@ -264,6 +264,17 @@ async function renderWelcomeCard({ avatarUrl, displayName, username, memberNumbe
   drawStatBox(ctx, gridLeft, statTop, colW, statH, 'Member Ke-', `#${memberNumber}`);
   drawStatBox(ctx, gridLeft + colW + colGap, statTop, colW, statH, 'Bergabung', formatDate(joinedAt));
   drawStatBox(ctx, gridLeft + (colW + colGap) * 2, statTop, colW, statH, 'Username', `@${username}`);
+
+  // ---- Teks penutup, di bawah baris statistik ----
+  ctx.textAlign = 'center';
+  ctx.fillStyle = COLORS.pinkSoft;
+  ctx.font = 'bold 15px sans-serif';
+  ctx.fillText(
+    `T E L A H   B E R G A B U N G   D I   ${(communityName || 'MANTRA CREATIVE').toUpperCase().split('').join(' ')}`,
+    WIDTH / 2,
+    statTop + statH + 38
+  );
+  ctx.textAlign = 'left';
 
   return canvas.encode('png');
 }
