@@ -1,5 +1,12 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-const { WELCOME_TEXT, RULES_TITLE, RULES_INTRO, RULES_NOTE, RULES } = require('./rulesContent');
+const {
+  WELCOME_TEXT,
+  RULES_AUTHOR,
+  RULES_TITLE_TEMPLATE,
+  RULES_INTRO,
+  RULES_NOTE,
+  RULES,
+} = require('./rulesContent');
 
 const COLOR_PINK = 0xff2f9c;
 
@@ -14,30 +21,40 @@ function buildWelcomeTextEmbed(lang) {
 }
 
 /**
- * Embed 2: "📜 Server Rules" -- tiap aturan jadi 1 field ("Aturan N -
- * Judul") biar rapi & gampang di-scan, bukan 1 paragraf panjang nyambung.
- * Field terakhir ("Catatan") nampung kalimat penutup soal rules bisa
- * berubah sewaktu-waktu.
+ * Embed 2: "Peraturan Server" -- layout niru referensi:
+ *  - author kecil "📜 Peraturan Server" di atas judul besar
+ *  - judul besar "Aturan di <nama komunitas>"
+ *  - tiap aturan = 1 field TANPA nama (field name dikosongkan pakai
+ *    zero-width space) supaya seluruh isinya (badge + heading + bullet)
+ *    bisa diatur sendiri lewat markdown di value-nya:
+ *      `Aturan N`          <- badge kecil (inline code = pill abu-abu)
+ *      ### Judul Aturan    <- heading gede/bold (markdown heading level 3)
+ *      - bullet 1          <- bullet list beneran, bukan paragraf nyambung
+ *      - bullet 2
  */
-function buildServerRulesEmbed(lang) {
+function buildServerRulesEmbed(lang, communityName) {
   const safeLang = lang === 'en' ? 'en' : 'id';
+  const name = communityName || 'MANTRA CREATIVE';
+  const label = safeLang === 'en' ? 'Rule' : 'Aturan';
+
   const embed = new EmbedBuilder()
     .setColor(COLOR_PINK)
-    .setTitle(RULES_TITLE[safeLang])
+    .setAuthor({ name: RULES_AUTHOR[safeLang] })
+    .setTitle(RULES_TITLE_TEMPLATE[safeLang](name))
     .setDescription(RULES_INTRO[safeLang]);
 
   RULES.forEach((rule, index) => {
     const content = rule[safeLang] || rule.id;
-    const label = safeLang === 'en' ? 'Rule' : 'Aturan';
+    const bullets = content.bullets.map((line) => `- ${line}`).join('\n');
     embed.addFields({
-      name: `${label} ${index + 1} -- ${content.title}`,
-      value: content.body,
+      name: '​',
+      value: `\`${label} ${index + 1}\`\n### ${content.title}\n${bullets}`,
     });
   });
 
   embed.addFields({
-    name: safeLang === 'en' ? '📌 Note' : '📌 Catatan',
-    value: RULES_NOTE[safeLang],
+    name: '​',
+    value: `*${RULES_NOTE[safeLang]}*`,
   });
 
   return embed;
