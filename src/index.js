@@ -67,6 +67,8 @@ const {
   formatRemaining,
 } = require('./idcard/checkinPanel');
 const { renderCheckinBanner } = require('./idcard/checkinBanner');
+const { renderWelcomeCard } = require('./welcome/welcomeCard');
+const { buildWelcomeEmbed, buildWelcomeComponents } = require('./welcome/welcomePanel');
 
 const client = new Client({
   // GuildMembers (privileged) wajib diaktifkan juga di Discord Developer
@@ -909,6 +911,59 @@ async function sendBoostThankYou(guild, member, { force = false } = {}) {
   }
   return false;
 }
+
+/**
+ * Kirim kartu + embed "Welcome" tiap ada member baru join server. Non-fatal
+ * di setiap langkah -- kalau channel belum di-set atau gagal kirim, cukup
+ * di-log tanpa bikin bot crash.
+ */
+client.on('guildMemberAdd', async (member) => {
+  try {
+    if (!config.welcomeChannelId) {
+      console.warn('[welcome] WELCOME_CHANNEL_ID belum diisi di .env, lewati kirim welcome.');
+      return;
+    }
+
+    const channel = await member.guild.channels.fetch(config.welcomeChannelId).catch(() => null);
+    if (!channel) {
+      console.error('[welcome] Channel welcome tidak ditemukan:', config.welcomeChannelId);
+      return;
+    }
+
+    const memberNumber = member.guild.memberCount;
+    const attachmentName = `welcome-${member.id}.png`;
+
+    const buffer = await renderWelcomeCard({
+      avatarUrl: member.user.displayAvatarURL({ extension: 'png', size: 256 }),
+      displayName: member.displayName,
+      username: member.user.username,
+      memberNumber,
+      joinedAt: member.joinedAt || new Date(),
+      communityName: config.community.name,
+    });
+
+    const attachment = new AttachmentBuilder(buffer, { name: attachmentName });
+    const embed = buildWelcomeEmbed({
+      member,
+      communityName: config.community.name,
+      memberNumber,
+      attachmentName,
+    });
+    const components = buildWelcomeComponents({
+      guildId: member.guild.id,
+      rulesChannelId: config.welcomeRulesChannelId,
+      takeRoleChannelId: config.welcomeTakeRoleChannelId,
+    });
+
+    await channel.send({
+      embeds: [embed],
+      files: [attachment],
+      components: components.components.length ? [components] : [],
+    });
+  } catch (error) {
+    console.error('[welcome] Gagal kirim welcome card:', error);
+  }
+});
 
 /**
  * Deteksi member yang BARU MULAI boost server (premiumSince berubah dari
