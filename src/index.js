@@ -1013,10 +1013,14 @@ async function handleTestWelcomeCommand(interaction) {
  * eligibility/musik), tinggal pasang sekali per channel.
  */
 async function handleTakeRoleCommand(interaction) {
-  await interaction.reply({
+  // Dikirim sebagai pesan BIASA ke channel (channel.send), bukan balasan
+  // interaction -- supaya tidak ada embel-embel "X used /takerole" di atas
+  // panelnya, sama persis kayak panel eligibility/musik yang sticky.
+  await interaction.channel.send({
     embeds: [buildTakeRoleEmbed(interaction.guild, config.community.name)],
     components: [buildGenderRow(), buildGameRow()],
   });
+  await interaction.reply({ content: '✅ Panel Take Role sudah dipasang di channel ini.', ephemeral: true });
 }
 
 // Role gender saling eksklusif -- ambil salah satu otomatis lepas yang lain.
