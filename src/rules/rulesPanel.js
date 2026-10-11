@@ -45,9 +45,13 @@ function buildServerRulesEmbed(lang, communityName) {
 
   RULES.forEach((rule, index) => {
     const content = rule[safeLang] || rule.id;
+    // Field NAME di embed otomatis dirender bold sama Discord (beda dari
+    // markdown heading "###" yang tidak didukung di dalam embed, cuma di
+    // pesan teks biasa) -- ini cara paling pas biar tiap judul aturan
+    // keliatan menonjol & bold tanpa nulis markdown yang tidak kebaca.
     embed.addFields({
-      name: '​',
-      value: `### \`${label} ${index + 1}\` ${content.title}\n${content.body}`,
+      name: `${label} ${index + 1} -- ${content.title}`,
+      value: content.body,
     });
   });
 
