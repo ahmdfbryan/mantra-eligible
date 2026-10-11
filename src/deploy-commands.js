@@ -115,6 +115,13 @@ const commands = [
   new SlashCommandBuilder()
     .setName('checkin')
     .setDescription('Tampilkan panel "Daily Check-in" (klaim reward XP harian)'),
+  new SlashCommandBuilder()
+    .setName('testwelcome')
+    .setDescription('Tes kirim welcome card ke channel welcome (simulasi member baru join)')
+    .addUserOption((option) =>
+      option.setName('user').setDescription('Member yang mau disimulasikan join (default: kamu sendiri)').setRequired(false)
+    )
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
 ].map((command) => command.toJSON());
 
 const rest = new REST({ version: '10' }).setToken(config.discordToken);
