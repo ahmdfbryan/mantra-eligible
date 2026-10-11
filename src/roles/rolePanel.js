@@ -1,6 +1,22 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const config = require('../config');
 
 const COLOR_PINK = 0xff2f9c;
+
+// Emoji custom server (sudah di-upload di Mantra Creative), dipakai di
+// tombol & teks embed gantiin emoji unicode biasa. Nama di objek ini cuma
+// label/fallback -- yang nentuin gambar yang muncul tetap ID-nya.
+const GAME_EMOJI = {
+  roblox: { id: config.gameEmojis.roblox, name: 'roblox' },
+  mobileLegends: { id: config.gameEmojis.mobileLegends, name: 'mobilelegends' },
+  pubg: { id: config.gameEmojis.pubg, name: 'pubg' },
+  freeFire: { id: config.gameEmojis.freeFire, name: 'freefire' },
+};
+
+function emojiTag(key) {
+  const emoji = GAME_EMOJI[key];
+  return emoji?.id ? `<:${emoji.name}:${emoji.id}>` : '';
+}
 
 // customId tombol -- dipakai juga di index.js buat nentuin role mana yang
 // di-toggle pas tombolnya diklik.
@@ -39,7 +55,9 @@ function buildTakeRoleEmbed(guild, communityName) {
       {
         name: '🎮 GAME FAVORIT',
         value:
-          '🟩 **Roblox**\n⚔️ **Mobile Legends**\n🔫 **PUBG**\n🔥 **Free Fire**\n> *Boleh pilih lebih dari satu.*',
+          `${emojiTag('roblox')} **Roblox**\n${emojiTag('mobileLegends')} **Mobile Legends**\n` +
+          `${emojiTag('pubg')} **PUBG**\n${emojiTag('freeFire')} **Free Fire**\n` +
+          '> *Boleh pilih lebih dari satu.*',
         inline: true,
       }
     )
@@ -56,10 +74,26 @@ function buildGenderRow() {
 
 function buildGameRow() {
   return new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId(BTN_GAME_ROBLOX).setLabel('Roblox').setEmoji('🟩').setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId(BTN_GAME_ML).setLabel('Mobile Legends').setEmoji('⚔️').setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId(BTN_GAME_PUBG).setLabel('PUBG').setEmoji('🔫').setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId(BTN_GAME_FF).setLabel('Free Fire').setEmoji('🔥').setStyle(ButtonStyle.Secondary)
+    new ButtonBuilder()
+      .setCustomId(BTN_GAME_ROBLOX)
+      .setLabel('Roblox')
+      .setEmoji(GAME_EMOJI.roblox)
+      .setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder()
+      .setCustomId(BTN_GAME_ML)
+      .setLabel('Mobile Legends')
+      .setEmoji(GAME_EMOJI.mobileLegends)
+      .setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder()
+      .setCustomId(BTN_GAME_PUBG)
+      .setLabel('PUBG')
+      .setEmoji(GAME_EMOJI.pubg)
+      .setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder()
+      .setCustomId(BTN_GAME_FF)
+      .setLabel('Free Fire')
+      .setEmoji(GAME_EMOJI.freeFire)
+      .setStyle(ButtonStyle.Secondary)
   );
 }
 
