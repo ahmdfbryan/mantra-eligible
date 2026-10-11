@@ -4,13 +4,13 @@ const config = require('../config');
 const COLOR_PINK = 0xff2f9c;
 
 // Emoji custom server (sudah di-upload di Mantra Creative), dipakai di
-// tombol & teks embed gantiin emoji unicode biasa. Nama di objek ini cuma
-// label/fallback -- yang nentuin gambar yang muncul tetap ID-nya.
+// tombol & teks embed gantiin emoji unicode biasa. Nama HARUS persis sama
+// kayak nama emoji aslinya di server supaya Discord bisa resolve gambarnya.
 const GAME_EMOJI = {
-  roblox: { id: config.gameEmojis.roblox, name: 'roblox' },
-  mobileLegends: { id: config.gameEmojis.mobileLegends, name: 'mobilelegends' },
-  pubg: { id: config.gameEmojis.pubg, name: 'pubg' },
-  freeFire: { id: config.gameEmojis.freeFire, name: 'freefire' },
+  roblox: { id: config.gameEmojis.roblox, name: 'Desaintanpajudul21' },
+  mobileLegends: { id: config.gameEmojis.mobileLegends, name: 'Desaintanpajudul15' },
+  pubg: { id: config.gameEmojis.pubg, name: 'Desaintanpajudul16' },
+  freeFire: { id: config.gameEmojis.freeFire, name: 'Desaintanpajudul18' },
 };
 
 function emojiTag(key) {
