@@ -1,9 +1,9 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const {
   WELCOME_TEXT,
-  RULES_AUTHOR,
-  RULES_TITLE_TEMPLATE,
+  RULES_TITLE,
   RULES_INTRO,
+  RULES_NOTE_LABEL,
   RULES_NOTE,
   RULES,
 } = require('./rulesContent');
@@ -21,16 +21,13 @@ function buildWelcomeTextEmbed(lang) {
 }
 
 /**
- * Embed 2: "Peraturan Server" -- layout niru referensi:
- *  - author kecil "📜 Peraturan Server" di atas judul besar
- *  - judul besar "Aturan di <nama komunitas>"
- *  - tiap aturan = 1 field TANPA nama (field name dikosongkan pakai
- *    zero-width space) supaya seluruh isinya diatur sendiri lewat markdown
- *    di value-nya:
- *      ### `Aturan N` -- Judul Aturan   <- "Aturan N" (gaya badge/code) DAN
- *                                          judulnya jadi 1 heading gede
- *                                          (markdown heading level 3)
- *      Paragraf penjelasan ...          <- teks biasa di bawahnya
+ * Embed 2: "📜 Server Rules" -- versi final sesuai request:
+ *  - judul statis "📜 Server Rules" (tanpa author, tanpa nama komunitas)
+ *  - intro paragraf asli ("Berikut peraturan resmi ...")
+ *  - tiap aturan = 1 field, name-nya "`Aturan N` Judul" (field name otomatis
+ *    bold di Discord -- ini satu-satunya cara bikin "Aturan N" + judulnya
+ *    tebal tanpa markdown heading, yang memang tidak didukung di embed)
+ *  - field penutup label "Catatan" (plain, bukan "📌 Catatan")
  */
 function buildServerRulesEmbed(lang, communityName) {
   const safeLang = lang === 'en' ? 'en' : 'id';
@@ -39,25 +36,23 @@ function buildServerRulesEmbed(lang, communityName) {
 
   const embed = new EmbedBuilder()
     .setColor(COLOR_PINK)
-    .setAuthor({ name: RULES_AUTHOR[safeLang] })
-    .setTitle(RULES_TITLE_TEMPLATE[safeLang](name))
-    .setDescription(RULES_INTRO[safeLang]);
+    .setTitle(RULES_TITLE[safeLang])
+    .setDescription(RULES_INTRO[safeLang](name));
 
   RULES.forEach((rule, index) => {
     const content = rule[safeLang] || rule.id;
-    // Field NAME di embed otomatis dirender bold sama Discord (beda dari
-    // markdown heading "###" yang tidak didukung di dalam embed, cuma di
-    // pesan teks biasa) -- ini cara paling pas biar tiap judul aturan
-    // keliatan menonjol & bold tanpa nulis markdown yang tidak kebaca.
+    // Field NAME di embed otomatis dirender bold sama Discord -- jadi
+    // "`Aturan N` Judul" ini tampil bold tanpa markdown heading (yang
+    // memang tidak didukung di dalam embed, cuma di pesan teks biasa).
     embed.addFields({
-      name: `${label} ${index + 1} -- ${content.title}`,
+      name: `\`${label} ${index + 1}\` ${content.title}`,
       value: content.body,
     });
   });
 
   embed.addFields({
-    name: '​',
-    value: `*${RULES_NOTE[safeLang]}*`,
+    name: RULES_NOTE_LABEL[safeLang],
+    value: RULES_NOTE[safeLang](name),
   });
 
   return embed;
