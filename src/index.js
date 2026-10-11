@@ -917,51 +917,93 @@ async function sendBoostThankYou(guild, member, { force = false } = {}) {
  * di setiap langkah -- kalau channel belum di-set atau gagal kirim, cukup
  * di-log tanpa bikin bot crash.
  */
+/**
+ * Render + kirim welcome card (gambar + embed + tombol) 1 member ke channel
+ * tertentu. Dipakai baik oleh event guildMemberAdd (member beneran baru
+ * join) maupun command /testwelcome (simulasi, buat tester/admin).
+ * @returns {Promise<{ ok: boolean, reason?: string }>}
+ */
+async function sendWelcomeCard(member, { channelId } = {}) {
+  const targetChannelId = channelId || config.welcomeChannelId;
+  if (!targetChannelId) {
+    return { ok: false, reason: 'WELCOME_CHANNEL_ID belum diisi di .env' };
+  }
+
+  const channel = await member.guild.channels.fetch(targetChannelId).catch(() => null);
+  if (!channel) {
+    return { ok: false, reason: `Channel welcome (${targetChannelId}) tidak ditemukan` };
+  }
+
+  const memberNumber = member.guild.memberCount;
+  const attachmentName = `welcome-${member.id}.png`;
+
+  const buffer = await renderWelcomeCard({
+    avatarUrl: member.user.displayAvatarURL({ extension: 'png', size: 256 }),
+    displayName: member.displayName,
+    username: member.user.username,
+    memberNumber,
+    joinedAt: member.joinedAt || new Date(),
+    communityName: config.community.name,
+  });
+
+  const attachment = new AttachmentBuilder(buffer, { name: attachmentName });
+  const embed = buildWelcomeEmbed({
+    member,
+    communityName: config.community.name,
+    memberNumber,
+    attachmentName,
+  });
+  const components = buildWelcomeComponents({
+    guildId: member.guild.id,
+    rulesChannelId: config.welcomeRulesChannelId,
+    takeRoleChannelId: config.welcomeTakeRoleChannelId,
+  });
+
+  await channel.send({
+    embeds: [embed],
+    files: [attachment],
+    components: components.components.length ? [components] : [],
+  });
+
+  return { ok: true };
+}
+
+/**
+ * Command /testwelcome -- buat tester/admin, simulasiin kartu + embed
+ * welcome TANPA perlu ada member beneran join/leave/join ulang. Butuh
+ * permission Manage Server (sudah dibatasi di deploy-commands.js).
+ */
+async function handleTestWelcomeCommand(interaction) {
+  await interaction.deferReply({ ephemeral: true });
+
+  const targetUser = interaction.options.getUser('user') || interaction.user;
+  const member = await interaction.guild.members.fetch(targetUser.id).catch(() => null);
+  if (!member) {
+    await interaction.editReply('❌ Member itu tidak ditemukan di server ini.');
+    return;
+  }
+
+  const result = await sendWelcomeCard(member).catch((error) => {
+    console.error('[welcome] Gagal tes welcome card:', error);
+    return { ok: false, reason: error.message };
+  });
+
+  if (!result.ok) {
+    await interaction.editReply(`❌ Gagal kirim tes welcome: ${result.reason}`);
+    return;
+  }
+
+  const channelMention = `<#${config.welcomeChannelId}>`;
+  await interaction.editReply(`✅ Tes welcome card buat **${targetUser.username}** sudah terkirim ke ${channelMention}.`);
+}
+
 client.on('guildMemberAdd', async (member) => {
-  try {
-    if (!config.welcomeChannelId) {
-      console.warn('[welcome] WELCOME_CHANNEL_ID belum diisi di .env, lewati kirim welcome.');
-      return;
-    }
-
-    const channel = await member.guild.channels.fetch(config.welcomeChannelId).catch(() => null);
-    if (!channel) {
-      console.error('[welcome] Channel welcome tidak ditemukan:', config.welcomeChannelId);
-      return;
-    }
-
-    const memberNumber = member.guild.memberCount;
-    const attachmentName = `welcome-${member.id}.png`;
-
-    const buffer = await renderWelcomeCard({
-      avatarUrl: member.user.displayAvatarURL({ extension: 'png', size: 256 }),
-      displayName: member.displayName,
-      username: member.user.username,
-      memberNumber,
-      joinedAt: member.joinedAt || new Date(),
-      communityName: config.community.name,
-    });
-
-    const attachment = new AttachmentBuilder(buffer, { name: attachmentName });
-    const embed = buildWelcomeEmbed({
-      member,
-      communityName: config.community.name,
-      memberNumber,
-      attachmentName,
-    });
-    const components = buildWelcomeComponents({
-      guildId: member.guild.id,
-      rulesChannelId: config.welcomeRulesChannelId,
-      takeRoleChannelId: config.welcomeTakeRoleChannelId,
-    });
-
-    await channel.send({
-      embeds: [embed],
-      files: [attachment],
-      components: components.components.length ? [components] : [],
-    });
-  } catch (error) {
+  const result = await sendWelcomeCard(member).catch((error) => {
     console.error('[welcome] Gagal kirim welcome card:', error);
+    return { ok: false, reason: error.message };
+  });
+  if (!result.ok) {
+    console.warn('[welcome] Welcome tidak terkirim:', result.reason);
   }
 });
 
@@ -1149,6 +1191,11 @@ client.on('interactionCreate', async (interaction) => {
 
     if (interaction.commandName === 'checkin') {
       await handleCheckinCommand(interaction);
+      return;
+    }
+
+    if (interaction.commandName === 'testwelcome') {
+      await handleTestWelcomeCommand(interaction);
       return;
     }
 
