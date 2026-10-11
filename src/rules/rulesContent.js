@@ -20,27 +20,27 @@ const WELCOME_TEXT = {
   },
 };
 
-// Baris kecil di atas judul besar embed Rules (dipasang lewat setAuthor).
-const RULES_AUTHOR = {
-  id: '📜 Peraturan Server',
+const RULES_TITLE = {
+  id: '📜 Server Rules',
   en: '📜 Server Rules',
 };
 
-// Judul besar embed Rules (dipasang lewat setTitle) -- diisi nama komunitas
-// pas dirender, lihat rulesPanel.js.
-const RULES_TITLE_TEMPLATE = {
-  id: (name) => `Aturan di ${name}`,
-  en: (name) => `Rules of ${name}`,
+const RULES_INTRO = {
+  id: (name) =>
+    `Berikut peraturan resmi yang berlaku di **${name}**. Wajib dibaca dan dipatuhi oleh seluruh member tanpa terkecuali.`,
+  en: (name) => `Here are the official rules of **${name}**. All members are required to read and follow them without exception.`,
 };
 
-const RULES_INTRO = {
-  id: 'Wajib dibaca dan dipatuhi oleh seluruh member tanpa terkecuali.',
-  en: 'Required reading for every member -- no exceptions.',
+const RULES_NOTE_LABEL = {
+  id: 'Catatan',
+  en: 'Note',
 };
 
 const RULES_NOTE = {
-  id: 'Rules dapat diperbarui sewaktu-waktu untuk menjaga komunitas ini tetap aman, nyaman, dan menyenangkan untuk semua.',
-  en: 'These rules may be updated at any time to keep this community a safe, comfortable, and enjoyable place for everyone.',
+  id: (name) =>
+    `Rules dapat diperbarui sewaktu-waktu untuk menjaga ${name} tetap menjadi komunitas yang aman, nyaman, dan menyenangkan untuk semua.`,
+  en: (name) =>
+    `These rules may be updated at any time to keep ${name} a safe, comfortable, and enjoyable community for everyone.`,
 };
 
 const RULES = [
@@ -156,4 +156,4 @@ const RULES = [
   },
 ];
 
-module.exports = { WELCOME_TEXT, RULES_AUTHOR, RULES_TITLE_TEMPLATE, RULES_INTRO, RULES_NOTE, RULES };
+module.exports = { WELCOME_TEXT, RULES_TITLE, RULES_INTRO, RULES_NOTE_LABEL, RULES_NOTE, RULES };
