@@ -10,13 +10,13 @@ const COLOR_PINK = 0xff2f9c;
  */
 function buildWelcomeEmbed({ member, communityName, memberNumber }) {
   const name = communityName || 'MANTRA CREATIVE';
+  // Catatan: embed TITLE di Discord tidak bisa resolve mention (<@id> bakal
+  // tampil mentah, bukan jadi tag yang bisa diklik), jadi di judul dipakai
+  // username polos ("@username"), bukan mention beneran.
   return new EmbedBuilder()
     .setColor(COLOR_PINK)
-    .setTitle('👋 Selamat Datang!')
-    .setDescription(
-      `<@${member.id}>, selamat datang di **${name}**!\n` +
-        `Kamu member ke **#${memberNumber}**. Pastikan untuk membaca Rules & Guide Server di bawah ini.`
-    );
+    .setTitle(`Selamat datang, @${member.user.username} di ${name}!`)
+    .setDescription(`Kamu member ke **#${memberNumber}**. Pastikan untuk membaca Rules & Guide Server di bawah ini.`);
 }
 
 /**
