@@ -69,6 +69,17 @@ const {
 const { renderCheckinBanner } = require('./idcard/checkinBanner');
 const { renderWelcomeCard } = require('./welcome/welcomeCard');
 const { buildWelcomeEmbed, buildWelcomeComponents } = require('./welcome/welcomePanel');
+const {
+  BTN_GENDER_BOYS,
+  BTN_GENDER_GIRLS,
+  BTN_GAME_ROBLOX,
+  BTN_GAME_ML,
+  BTN_GAME_PUBG,
+  BTN_GAME_FF,
+  buildTakeRoleEmbed,
+  buildGenderRow,
+  buildGameRow,
+} = require('./roles/rolePanel');
 
 const client = new Client({
   // GuildMembers (privileged) wajib diaktifkan juga di Discord Developer
@@ -996,6 +1007,77 @@ async function handleTestWelcomeCommand(interaction) {
   await interaction.editReply(`✅ Tes welcome card buat **${targetUser.username}** sudah terkirim ke ${channelMention}.`);
 }
 
+/**
+ * Command /takerole -- pasang panel self-role "Take Role" (gender + game
+ * favorit) di channel ini. Panel-nya statis (bukan sticky kayak panel
+ * eligibility/musik), tinggal pasang sekali per channel.
+ */
+async function handleTakeRoleCommand(interaction) {
+  await interaction.reply({
+    embeds: [buildTakeRoleEmbed(interaction.guild, config.community.name)],
+    components: [buildGenderRow(), buildGameRow()],
+  });
+}
+
+// Role gender saling eksklusif -- ambil salah satu otomatis lepas yang lain.
+const GENDER_ROLE_BY_BUTTON = {
+  [BTN_GENDER_BOYS]: () => config.genderRoles.boys,
+  [BTN_GENDER_GIRLS]: () => config.genderRoles.girls,
+};
+
+// Role game independen satu sama lain -- toggle biasa (ambil/lepas sendiri-sendiri).
+const GAME_ROLE_BY_BUTTON = {
+  [BTN_GAME_ROBLOX]: () => config.gameRoles.roblox,
+  [BTN_GAME_ML]: () => config.gameRoles.mobileLegends,
+  [BTN_GAME_PUBG]: () => config.gameRoles.pubg,
+  [BTN_GAME_FF]: () => config.gameRoles.freeFire,
+};
+
+/**
+ * Tombol gender (MC Boys / MC Girls) di panel Take Role -- saling
+ * eksklusif: klik salah satu otomatis lepas role gender yang lain (kalau
+ * ada), klik role yang SUDAH dipakai = lepas (jadi tidak pilih gender).
+ */
+async function handleGenderRoleButton(interaction, roleId) {
+  const member = interaction.member;
+  const alreadyHas = member.roles.cache.has(roleId);
+
+  if (alreadyHas) {
+    await member.roles.remove(roleId);
+    await interaction.reply({ content: '✅ Role gender dilepas.', ephemeral: true });
+    return;
+  }
+
+  const otherGenderIds = Object.values(config.genderRoles).filter((id) => id && id !== roleId);
+  for (const otherId of otherGenderIds) {
+    if (member.roles.cache.has(otherId)) {
+      await member.roles.remove(otherId).catch((error) =>
+        console.error('[takerole] Gagal lepas role gender lama:', error)
+      );
+    }
+  }
+
+  await member.roles.add(roleId);
+  await interaction.reply({ content: `✅ Role berhasil diambil: <@&${roleId}>`, ephemeral: true });
+}
+
+/**
+ * Tombol game (Roblox/ML/PUBG/Free Fire) di panel Take Role -- toggle
+ * biasa, independen, boleh ambil lebih dari satu sekaligus.
+ */
+async function handleGameRoleButton(interaction, roleId) {
+  const member = interaction.member;
+  const alreadyHas = member.roles.cache.has(roleId);
+
+  if (alreadyHas) {
+    await member.roles.remove(roleId);
+    await interaction.reply({ content: '✅ Role game dilepas.', ephemeral: true });
+  } else {
+    await member.roles.add(roleId);
+    await interaction.reply({ content: `✅ Role berhasil diambil: <@&${roleId}>`, ephemeral: true });
+  }
+}
+
 client.on('guildMemberAdd', async (member) => {
   const result = await sendWelcomeCard(member).catch((error) => {
     console.error('[welcome] Gagal kirim welcome card:', error);
@@ -1198,6 +1280,11 @@ client.on('interactionCreate', async (interaction) => {
       return;
     }
 
+    if (interaction.commandName === 'takerole') {
+      await handleTakeRoleCommand(interaction);
+      return;
+    }
+
     return;
   }
 
@@ -1254,6 +1341,43 @@ client.on('interactionCreate', async (interaction) => {
       files: [attachment],
       components: [buildIdCardPanelComponents()],
     });
+    return;
+  }
+
+  // ==== Tombol di panel "Take Role" (gender & game favorit) ====
+  // Ephemeral -- cuma yang klik yang lihat konfirmasinya. Dibungkus try/catch
+  // khusus karena ini salah satu aksi yang paling gampang gagal gara-gara
+  // setup server (role di atas role bot, atau bot belum punya izin Manage Roles).
+  if (
+    interaction.isButton() &&
+    (GENDER_ROLE_BY_BUTTON[interaction.customId] || GAME_ROLE_BY_BUTTON[interaction.customId])
+  ) {
+    const isGender = Boolean(GENDER_ROLE_BY_BUTTON[interaction.customId]);
+    const roleId = isGender
+      ? GENDER_ROLE_BY_BUTTON[interaction.customId]()
+      : GAME_ROLE_BY_BUTTON[interaction.customId]();
+
+    if (!roleId) {
+      await interaction.reply({ content: '❌ Role ini belum di-setup di .env.', ephemeral: true });
+      return;
+    }
+
+    try {
+      if (isGender) {
+        await handleGenderRoleButton(interaction, roleId);
+      } else {
+        await handleGameRoleButton(interaction, roleId);
+      }
+    } catch (error) {
+      console.error('[takerole] Gagal ubah role:', error);
+      const message =
+        '❌ Gagal mengubah role. Kemungkinan role bot ada DI BAWAH role ini di urutan role server, atau bot belum punya izin **Manage Roles**.';
+      if (interaction.replied || interaction.deferred) {
+        await interaction.followUp({ content: message, ephemeral: true }).catch(() => null);
+      } else {
+        await interaction.reply({ content: message, ephemeral: true }).catch(() => null);
+      }
+    }
     return;
   }
 
