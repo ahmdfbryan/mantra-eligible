@@ -66,7 +66,6 @@ const {
   buildCheckinPanelComponents,
   formatRemaining,
 } = require('./idcard/checkinPanel');
-const { renderCheckinBanner } = require('./idcard/checkinBanner');
 const { renderWelcomeCard } = require('./welcome/welcomeCard');
 const { buildWelcomeEmbed, buildWelcomeComponents } = require('./welcome/welcomePanel');
 const {
@@ -89,6 +88,7 @@ const {
 } = require('./rules/rulesPanel');
 
 const RULES_GIF_PATH = path.join(__dirname, '..', 'assets', 'rules-banner.gif');
+const CHECKIN_GIF_PATH = path.join(__dirname, '..', 'assets', 'checkin-banner.gif');
 
 const client = new Client({
   // GuildMembers (privileged) wajib diaktifkan juga di Discord Developer
@@ -729,17 +729,13 @@ async function handleRankCommand(interaction) {
 }
 
 async function handleCheckinCommand(interaction) {
-  const bannerBuffer = await renderCheckinBanner({ communityName: config.community.name }).catch((error) => {
-    console.error('[checkin] Gagal render banner:', error);
-    return null;
-  });
-  const attachmentName = 'checkin-banner.png';
-  const attachment = bannerBuffer ? new AttachmentBuilder(bannerBuffer, { name: attachmentName }) : null;
+  const attachmentName = 'checkin-banner.gif';
+  const attachment = new AttachmentBuilder(CHECKIN_GIF_PATH, { name: attachmentName });
 
   await interaction.reply({
-    embeds: [buildCheckinPanelEmbed(interaction.guild, config.community.name, attachment ? attachmentName : null)],
+    embeds: [buildCheckinPanelEmbed(interaction.guild, config.community.name, attachmentName)],
     components: [buildCheckinPanelComponents()],
-    files: attachment ? [attachment] : [],
+    files: [attachment],
   });
 }
 
