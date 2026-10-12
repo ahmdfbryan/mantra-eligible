@@ -38,11 +38,11 @@ function priceForRobux(amount, ratePer100) {
  * buka/tutup yang auto-refresh begitu admin jalankan /toko-buka atau
  * /toko-tutup (embed yang sama di-edit ulang, bukan dikirim pesan baru).
  */
-function buildStorePanelEmbed({ guild, communityName, open }) {
+function buildStorePanelEmbed({ guild, communityName, open, attachmentName }) {
   const name = communityName || 'MANTRA CREATIVE';
   const iconURL = guild?.iconURL({ size: 128 }) || undefined;
 
-  return new EmbedBuilder()
+  const embed = new EmbedBuilder()
     .setColor(COLOR_PINK)
     .setAuthor({ name, iconURL })
     .setTitle('🛍️ MANTRA CREATIVE STORE')
@@ -70,6 +70,12 @@ function buildStorePanelEmbed({ guild, communityName, open }) {
     )
     .setThumbnail(iconURL || null)
     .setFooter({ text: `${name} -- transaksi aman lewat ticket privat` });
+
+  if (attachmentName) {
+    embed.setImage(`attachment://${attachmentName}`);
+  }
+
+  return embed;
 }
 
 function buildStorePanelComponents({ open }) {
