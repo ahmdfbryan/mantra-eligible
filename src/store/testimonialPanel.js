@@ -4,10 +4,13 @@ const { COLOR_PINK, DIVIDER, formatRupiah } = require('./storePanel');
 /**
  * Embed testimoni yang diposting ke channel testimoni khusus, setelah
  * ticket ditutup dengan status Completed dan buyer mengisi rating+komentar.
+ * Layout niru referensi "TESTIMONI 0078" -- tiap baris info pakai bullet
+ * "»", dikelompokkan jadi beberapa field dipisah divider tipis.
  */
 function buildTestimonialEmbed({
   ticketNumber,
   buyerId,
+  buyerUsername,
   adminHandlerId,
   productLabel,
   price,
@@ -17,23 +20,29 @@ function buildTestimonialEmbed({
   totalSpend,
 }) {
   const stars = '⭐'.repeat(Math.max(1, Math.min(5, rating)));
+  const commentText = comment && comment.trim() ? comment.trim() : '-';
 
   return new EmbedBuilder()
     .setColor(COLOR_PINK)
-    .setTitle(`📝 TESTIMONI #${ticketNumber}`)
+    .setTitle(`TESTIMONI ${ticketNumber}`)
     .addFields(
       { name: '​', value: DIVIDER },
-      { name: 'Buyer', value: `<@${buyerId}>`, inline: true },
-      { name: 'Admin Handler', value: `<@${adminHandlerId}>`, inline: true },
+      {
+        name: '​',
+        value:
+          `» **Buyer** : <@${buyerId}>${buyerUsername ? ` (\`${buyerUsername}\`)` : ''}\n` +
+          `» **Admin Handler** : <@${adminHandlerId}>`,
+      },
       { name: '​', value: DIVIDER },
-      { name: 'Order ID', value: `#${ticketNumber}`, inline: true },
-      { name: 'Produk', value: productLabel, inline: true },
-      { name: 'Harga', value: formatRupiah(price), inline: true },
-      { name: 'Rating', value: stars, inline: false },
+      {
+        name: '​',
+        value: `» **Order ID** : ${ticketNumber}\n» **Produk** : ${productLabel}\n» **Harga** : ${formatRupiah(price)}`,
+      },
+      { name: '​', value: `» **Rating** : ${stars}` },
       { name: '​', value: DIVIDER },
-      { name: 'Komentar', value: `\`\`\`${comment && comment.trim() ? comment.trim() : '-'}\`\`\``, inline: false },
+      { name: '​', value: `**Komentar**\n> ${commentText}` },
       { name: '​', value: DIVIDER },
-      { name: 'Total Spend', value: formatRupiah(totalSpend), inline: false }
+      { name: '​', value: `🐾 **Total Spend** : ${formatRupiah(totalSpend)}` }
     )
     .setThumbnail(buyerAvatarUrl || null)
     .setTimestamp(new Date());
