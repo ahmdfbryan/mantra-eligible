@@ -88,4 +88,23 @@ module.exports = {
     pubg: process.env.EMOJI_GAME_PUBG || '1558946583008256061',
     freeFire: process.env.EMOJI_GAME_FF || '1558946703527256078',
   },
+
+  // ==== Store / Ticket Order ====
+  store: {
+    // Channel tempat panel "Store" (dropdown pilih produk) dipasang.
+    panelChannelId: process.env.STORE_PANEL_CHANNEL_ID || '1559059457806303353',
+    // Channel tempat testimoni pembeli diposting setelah ticket Completed.
+    testimonialChannelId: process.env.STORE_TESTIMONIAL_CHANNEL_ID || '1559059134098440192',
+    // Channel tempat panel "Top 10 Spender Leaderboard" (sticky) dipasang.
+    leaderboardChannelId: process.env.STORE_LEADERBOARD_CHANNEL_ID || '1559058905319870504',
+    // Role staff yang berhak menutup & mengakses ticket.
+    staffRoleId: process.env.STORE_STAFF_ROLE_ID || '1546870723216150639',
+    // Prefix nama category tempat channel ticket dibuat otomatis. Kalau 1
+    // category sudah penuh (50 channel, limit Discord), bot otomatis bikin
+    // category baru dengan suffix angka (mis. "🎫 Tickets 2").
+    ticketCategoryPrefix: process.env.STORE_TICKET_CATEGORY_PREFIX || '🎫 Tickets',
+    // Rate harga Robux per 100 Robux (linear -- 200 Robux = 2x rate, dst).
+    robuxRatePer100: Number(process.env.STORE_ROBUX_RATE_PER_100 || 11000),
+    robuxOptions: [100, 200, 300, 400, 500],
+  },
 };
