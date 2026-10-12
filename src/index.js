@@ -1858,6 +1858,7 @@ client.on('interactionCreate', async (interaction) => {
               comment,
               buyerAvatarUrl: buyerUser?.displayAvatarURL({ extension: 'png', size: 256 }) || null,
               totalSpend,
+              communityName: config.community.name,
             }),
           ],
         })
