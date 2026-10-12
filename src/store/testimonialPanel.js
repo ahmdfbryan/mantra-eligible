@@ -23,7 +23,6 @@ function buildTestimonialEmbed({
 }) {
   const stars = '⭐'.repeat(Math.max(1, Math.min(5, rating)));
   const commentText = comment && comment.trim() ? comment.trim() : '-';
-  const name = communityName || 'MANTRA CREATIVE';
 
   const description = [
     DIVIDER,
@@ -46,7 +45,6 @@ function buildTestimonialEmbed({
     .setTitle(`TESTIMONI #${ticketNumber}`)
     .setDescription(description)
     .setThumbnail(buyerAvatarUrl || null)
-    .setFooter({ text: `Made by ${name} Store` })
     .setTimestamp(new Date());
 }
 
