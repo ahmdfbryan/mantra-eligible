@@ -1622,6 +1622,17 @@ client.on('interactionCreate', async (interaction) => {
         await interaction.reply({ content: '🔴 Toko sedang tutup, coba lagi nanti ya.', ephemeral: true });
         return;
       }
+
+      // Pengaman: 1 orang cuma boleh punya 1 ticket aktif bersamaan.
+      const existingTicket = ticketStore.getOpenTicketByBuyer(interaction.user.id);
+      if (existingTicket) {
+        await interaction.reply({
+          content: `⚠️ Kamu masih punya ticket yang sedang berjalan di <#${existingTicket.channelId}>. Selesaikan/tunggu ticket itu ditutup dulu sebelum bikin ticket baru.`,
+          ephemeral: true,
+        });
+        return;
+      }
+
       await interaction.showModal(buildRobloxUsernameModal());
       return;
     }
@@ -1635,6 +1646,21 @@ client.on('interactionCreate', async (interaction) => {
     if (!pending) {
       await interaction.update({
         content: '⚠️ Sesi order sudah kedaluwarsa. Silakan pilih produk lagi dari panel Store.',
+        embeds: [],
+        components: [],
+      });
+      return;
+    }
+
+    // Pengaman terakhir (antisipasi race condition di langkah paling akhir
+    // sebelum channel ticket benar-benar dibuat).
+    const existingTicket =
+      ticketStore.getOpenTicketByBuyer(interaction.user.id) ||
+      ticketStore.getOpenTicketByRobloxUsername(pending.robloxUsername);
+    if (existingTicket) {
+      pendingRobuxFlow.delete(key);
+      await interaction.update({
+        content: `⚠️ Sudah ada ticket yang sedang berjalan di <#${existingTicket.channelId}>. Tunggu ticket itu ditutup dulu sebelum bikin ticket baru.`,
         embeds: [],
         components: [],
       });
@@ -1730,6 +1756,16 @@ client.on('interactionCreate', async (interaction) => {
     const username = interaction.fields.getTextInputValue(STORE_USERNAME_INPUT_ID).trim();
     await interaction.deferReply({ ephemeral: true });
 
+    // Pengaman (ulang, antisipasi race condition): cek lagi buyer belum
+    // punya ticket aktif sebelum lanjut proses lookup Roblox.
+    const existingBuyerTicket = ticketStore.getOpenTicketByBuyer(interaction.user.id);
+    if (existingBuyerTicket) {
+      await interaction.editReply(
+        `⚠️ Kamu masih punya ticket yang sedang berjalan di <#${existingBuyerTicket.channelId}>. Selesaikan/tunggu ticket itu ditutup dulu sebelum bikin ticket baru.`
+      );
+      return;
+    }
+
     let member;
     try {
       member = await lookupMember(username);
@@ -1751,6 +1787,16 @@ client.on('interactionCreate', async (interaction) => {
 
       console.error('[store] Unexpected error saat lookup Roblox:', error);
       await interaction.editReply('⚠️ Terjadi kesalahan tak terduga. Coba lagi beberapa saat.');
+      return;
+    }
+
+    // Pengaman: 1 akun Roblox cuma boleh punya 1 ticket aktif bersamaan,
+    // walau dipakai lewat Discord account yang berbeda.
+    const existingUsernameTicket = ticketStore.getOpenTicketByRobloxUsername(member.username);
+    if (existingUsernameTicket) {
+      await interaction.editReply(
+        `⚠️ Akun Roblox \`${member.username}\` masih punya ticket yang sedang berjalan di <#${existingUsernameTicket.channelId}>. Tunggu ticket itu ditutup dulu sebelum bikin ticket baru.`
+      );
       return;
     }
 
