@@ -5,6 +5,7 @@ const {
   StringSelectMenuOptionBuilder,
 } = require('discord.js');
 const config = require('../config');
+const ticketStore = require('./ticketStore');
 
 const COLOR_PINK = 0xff2f9c;
 // Lebih pendek dari divider di panel lain (rolePanel.js dkk) -- yang versi
@@ -34,6 +35,19 @@ function formatRupiah(amount) {
  */
 function priceForRobux(amount, ratePer100) {
   return Math.round((amount / 100) * ratePer100);
+}
+
+/**
+ * Teks "Total Transaksi" + "Rating Toko" (rata-rata dari semua testimoni
+ * yang masuk) -- dihitung ulang tiap kali panel Store dibangun/di-refresh.
+ */
+function buildStoreStatsText() {
+  const completedCount = ticketStore.getCompletedCount();
+  const { average, count: ratingCount } = ticketStore.getAverageRating();
+
+  const ratingText = ratingCount > 0 ? `${average.toFixed(1)}/5 (${ratingCount} testimoni)` : 'Belum ada rating';
+
+  return `🧾 **Total Transaksi** : ${completedCount}\n⭐ **Rating Toko** : ${ratingText}`;
 }
 
 /**
@@ -68,6 +82,11 @@ function buildStorePanelEmbed({ guild, communityName, open, attachmentName }) {
         value: open
           ? '🟢 **BUKA** — silakan pilih produk di bawah.'
           : '🔴 **TUTUP** — mohon tunggu sampai toko dibuka kembali.',
+        inline: false,
+      },
+      {
+        name: '📊 Statistik Toko',
+        value: buildStoreStatsText(),
         inline: false,
       }
     )
