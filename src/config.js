@@ -111,5 +111,8 @@ module.exports = {
       id: process.env.EMOJI_ROBUX_ID || '1559070786088730735',
       name: process.env.EMOJI_ROBUX_NAME || 'robux',
     },
+    // Channel tempat pengumuman update stock Robux harian dikirim (tag
+    // @everyone tiap admin set stock baru lewat /toko-stock).
+    stockAnnounceChannelId: process.env.STORE_STOCK_ANNOUNCE_CHANNEL_ID || '1559188375552925727',
   },
 };
