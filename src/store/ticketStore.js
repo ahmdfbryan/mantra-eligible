@@ -9,11 +9,7 @@ const DATA_FILE = path.join(DATA_DIR, 'store-tickets.json');
 function ensureFile() {
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
   if (!fs.existsSync(DATA_FILE)) {
-    fs.writeFileSync(
-      DATA_FILE,
-      JSON.stringify({ nextTicketNumber: 1, categories: [], tickets: {}, spenders: {} }, null, 2),
-      'utf8'
-    );
+    fs.writeFileSync(DATA_FILE, JSON.stringify({ categories: [], tickets: {}, spenders: {} }, null, 2), 'utf8');
   }
 }
 
@@ -23,14 +19,13 @@ function readAll() {
     const raw = fs.readFileSync(DATA_FILE, 'utf8');
     const data = raw.trim() ? JSON.parse(raw) : {};
     return {
-      nextTicketNumber: data.nextTicketNumber || 1,
       categories: Array.isArray(data.categories) ? data.categories : [],
       tickets: data.tickets || {},
       spenders: data.spenders || {},
     };
   } catch (error) {
     console.error('[store] Gagal baca store-tickets.json, mulai dari kosong:', error);
-    return { nextTicketNumber: 1, categories: [], tickets: {}, spenders: {} };
+    return { categories: [], tickets: {}, spenders: {} };
   }
 }
 
@@ -39,16 +34,26 @@ function writeAll(data) {
   fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), 'utf8');
 }
 
+// Dipakai bikin ID ticket acak -- huruf kapital + angka, tanpa karakter yang
+// gampang ketuker (0/O, 1/I) biar gampang dibaca/diketik ulang kalau perlu.
+const TICKET_ID_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+
 /**
- * Ambil + naikkan nomor ticket berikutnya (global, auto-increment).
- * @returns {{ number: number, padded: string }}
+ * Generate ID ticket acak (default 6 karakter), dicek supaya tidak bentrok
+ * sama ticket yang sudah pernah ada (termasuk yang sudah closed, biar Order
+ * ID selamanya unik).
+ * @returns {string}
  */
-function nextTicketNumber() {
+function generateTicketId(length = 6) {
   const data = readAll();
-  const number = data.nextTicketNumber;
-  data.nextTicketNumber = number + 1;
-  writeAll(data);
-  return { number, padded: String(number).padStart(4, '0') };
+  const existingIds = new Set(Object.values(data.tickets).map((t) => t.ticketNumber));
+
+  let id;
+  do {
+    id = Array.from({ length }, () => TICKET_ID_CHARS[Math.floor(Math.random() * TICKET_ID_CHARS.length)]).join('');
+  } while (existingIds.has(id));
+
+  return id;
 }
 
 function getCategories() {
@@ -158,7 +163,7 @@ function getTopSpenders(limit = 10) {
 }
 
 module.exports = {
-  nextTicketNumber,
+  generateTicketId,
   getCategories,
   addCategory,
   createTicket,
