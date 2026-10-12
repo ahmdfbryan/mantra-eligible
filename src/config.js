@@ -106,5 +106,10 @@ module.exports = {
     // Rate harga Robux per 100 Robux (linear -- 200 Robux = 2x rate, dst).
     robuxRatePer100: Number(process.env.STORE_ROBUX_RATE_PER_100 || 11000),
     robuxOptions: [100, 200, 300, 400, 500],
+    // Emoji custom server buat ikon Robux (ganti emoji unicode 💎).
+    robuxEmoji: {
+      id: process.env.EMOJI_ROBUX_ID || '1559070786088730735',
+      name: process.env.EMOJI_ROBUX_NAME || 'robux',
+    },
   },
 };
