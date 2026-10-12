@@ -919,6 +919,28 @@ async function handleTokoStockCommand(interaction) {
   );
 }
 
+/**
+ * Umumkan ke channel stock (tag @everyone) kalau toko otomatis tutup
+ * karena stock Robux hari ini sudah habis (dipanggil tiap stock hasil
+ * reserveStock() turun ke 0).
+ */
+async function announceStockDepleted(client) {
+  const announceChannel = await client.channels.fetch(config.store.stockAnnounceChannelId).catch(() => null);
+  if (!announceChannel) return;
+
+  const embed = new EmbedBuilder()
+    .setColor(STORE_COLOR_PINK)
+    .setTitle(`${robuxEmojiTag()} Stock Robux Hari Ini`)
+    .setDescription(
+      'Stock Robux hari ini sudah **habis**!\n\n' +
+        'Toko otomatis **TUTUP** sementara. Tunggu stock di-update lagi ya 🙏'
+    );
+
+  await announceChannel
+    .send({ content: '@everyone', embeds: [embed], allowedMentions: { parse: ['everyone'] } })
+    .catch((error) => console.error('[store] Gagal kirim pengumuman stock habis:', error));
+}
+
 async function refreshStoreLeaderboard(client) {
   const panel = storePanelStore.getLeaderboardPanel();
   if (!panel) return;
@@ -1769,6 +1791,7 @@ client.on('interactionCreate', async (interaction) => {
     const updatedStock = stockStore.reserveStock(amount);
     if (updatedStock.total !== null && updatedStock.remaining !== null && updatedStock.remaining <= 0) {
       storePanelStore.setStoreOpen(false, 'stock');
+      await announceStockDepleted(interaction.client);
     }
     await refreshStorePanel(interaction.client).catch((error) =>
       console.error('[store] Gagal refresh panel Store (stock):', error)
