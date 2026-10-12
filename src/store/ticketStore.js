@@ -86,6 +86,38 @@ function getTicket(channelId) {
   return data.tickets[channelId] || null;
 }
 
+/**
+ * Cari ticket yang masih "open" (belum ditutup Completed/Cancelled/Refund)
+ * milik 1 buyer (Discord user ID) -- dipakai buat cegah 1 orang bikin lebih
+ * dari 1 ticket aktif bersamaan.
+ * @returns {{ channelId: string } & object | null}
+ */
+function getOpenTicketByBuyer(buyerId) {
+  const data = readAll();
+  for (const [channelId, ticket] of Object.entries(data.tickets)) {
+    if (ticket.buyerId === buyerId && ticket.status === 'open') {
+      return { channelId, ...ticket };
+    }
+  }
+  return null;
+}
+
+/**
+ * Sama seperti getOpenTicketByBuyer, tapi dicari berdasarkan username
+ * Roblox (case-insensitive) -- cegah 1 akun Roblox dipakai bikin ticket
+ * dobel lewat Discord account yang berbeda.
+ */
+function getOpenTicketByRobloxUsername(robloxUsername) {
+  const data = readAll();
+  const target = robloxUsername.toLowerCase();
+  for (const [channelId, ticket] of Object.entries(data.tickets)) {
+    if (ticket.robloxUsername?.toLowerCase() === target && ticket.status === 'open') {
+      return { channelId, ...ticket };
+    }
+  }
+  return null;
+}
+
 function updateTicket(channelId, patch) {
   const data = readAll();
   if (!data.tickets[channelId]) return null;
@@ -131,6 +163,8 @@ module.exports = {
   addCategory,
   createTicket,
   getTicket,
+  getOpenTicketByBuyer,
+  getOpenTicketByRobloxUsername,
   updateTicket,
   setTestimonial,
   addSpend,
