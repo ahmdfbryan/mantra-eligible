@@ -45,14 +45,24 @@ function setStorePanel(panel) {
 }
 
 /**
+ * @param {boolean} open
+ * @param {string|null} closedReason - 'manual' (lewat /toko-tutup) atau
+ *   'stock' (otomatis karena stock habis). null kalau open=true atau tidak
+ *   relevan. Dipakai supaya auto-reopen stock nggak nimpa /toko-tutup
+ *   manual, dan sebaliknya.
  * @returns {boolean} status open yang baru
  */
-function setStoreOpen(open) {
+function setStoreOpen(open, closedReason = null) {
   const data = readAll();
   if (!data.panel) return open;
   data.panel.open = open;
+  data.panel.closedReason = open ? null : closedReason;
   writeAll(data);
   return open;
+}
+
+function getStoreClosedReason() {
+  return readAll().panel?.closedReason || null;
 }
 
 function getLeaderboardPanel() {
@@ -69,6 +79,7 @@ module.exports = {
   getStorePanel,
   setStorePanel,
   setStoreOpen,
+  getStoreClosedReason,
   getLeaderboardPanel,
   setLeaderboardPanel,
 };
