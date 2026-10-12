@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits, PermissionFlagsBits, AttachmentBuilder, ChannelType } = require('discord.js');
+const { Client, GatewayIntentBits, PermissionFlagsBits, AttachmentBuilder, ChannelType, EmbedBuilder } = require('discord.js');
 const config = require('./config');
 const { lookupMember, getGroupIconUrl, RobloxApiError } = require('./roblox');
 const {
@@ -95,8 +95,10 @@ const STORE_GIF_PATH = path.join(__dirname, '..', 'assets', 'store-banner.gif');
 // ==== Store / Ticket Order ====
 const ticketStore = require('./store/ticketStore');
 const storePanelStore = require('./store/storePanelStore');
+const stockStore = require('./store/stockStore');
 const { getOrCreateTicketCategory } = require('./store/ticketCategory');
 const {
+  COLOR_PINK: STORE_COLOR_PINK,
   PRODUCT_SELECT_ID: STORE_PRODUCT_SELECT_ID,
   PRODUCT_ROBUX,
   PRODUCT_COMING_SOON,
@@ -870,9 +872,51 @@ async function handleTokoBukaCommand(interaction) {
 async function handleTokoTutupCommand(interaction) {
   if (!requireManageGuild(interaction)) return;
   await interaction.deferReply({ ephemeral: true });
-  storePanelStore.setStoreOpen(false);
+  storePanelStore.setStoreOpen(false, 'manual');
   await refreshStorePanel(interaction.client);
   await interaction.editReply('🔴 Toko ditutup -- dropdown produk di panel Store otomatis terkunci.');
+}
+
+/**
+ * Set stock Robux hari ini (/toko-stock). Toko otomatis dibuka lagi (kalau
+ * sebelumnya tertutup karena stock habis ATAU ditutup manual -- admin yang
+ * eksplisit set stock baru dianggap mau jualan lagi hari ini), lalu
+ * diumumkan ke channel stock dengan tag @everyone.
+ */
+async function handleTokoStockCommand(interaction) {
+  if (!requireManageGuild(interaction)) return;
+  await interaction.deferReply({ ephemeral: true });
+
+  const jumlah = interaction.options.getInteger('jumlah');
+  stockStore.setStock(jumlah, interaction.user.id);
+  storePanelStore.setStoreOpen(true);
+  await refreshStorePanel(interaction.client);
+
+  const announceChannel = await interaction.client.channels
+    .fetch(config.store.stockAnnounceChannelId)
+    .catch(() => null);
+  if (announceChannel) {
+    const embed = new EmbedBuilder()
+      .setColor(STORE_COLOR_PINK)
+      .setTitle(`${robuxEmojiTag()} Stock Robux Hari Ini`)
+      .setDescription(
+        `Stock Robux hari ini sudah di-update!\n\n` +
+          `**Jumlah Stock** : ${jumlah.toLocaleString('id-ID')} Robux\n` +
+          `**Diset oleh** : <@${interaction.user.id}>\n\n` +
+          `Toko sudah **BUKA**, langsung order sebelum kehabisan ya!`
+      );
+    await announceChannel
+      .send({
+        content: '@everyone',
+        embeds: [embed],
+        allowedMentions: { parse: ['everyone'] },
+      })
+      .catch((error) => console.error('[store] Gagal kirim pengumuman stock:', error));
+  }
+
+  await interaction.editReply(
+    `✅ Stock Robux hari ini di-set ke **${jumlah.toLocaleString('id-ID')}** & toko dibuka. Pengumuman dikirim ke <#${config.store.stockAnnounceChannelId}>.`
+  );
 }
 
 async function refreshStoreLeaderboard(client) {
@@ -1606,6 +1650,11 @@ client.on('interactionCreate', async (interaction) => {
       return;
     }
 
+    if (interaction.commandName === 'toko-stock') {
+      await handleTokoStockCommand(interaction);
+      return;
+    }
+
     return;
   }
 
@@ -1659,6 +1708,28 @@ client.on('interactionCreate', async (interaction) => {
       return;
     }
 
+    const amount = Number(interaction.values[0]);
+
+    // Cek stock harian -- kalau jumlah yang dipilih lebih besar dari sisa
+    // stock, tolak & kasih tahu sisa stock-nya, tapi tetap tampilkan lagi
+    // dropdown jumlah supaya buyer bisa langsung pilih jumlah yang lebih
+    // kecil tanpa harus ulang dari awal.
+    const stock = stockStore.getStock();
+    if (stock.total !== null && stock.remaining !== null && amount > stock.remaining) {
+      await interaction.update({
+        content:
+          stock.remaining > 0
+            ? `⚠️ Stock Robux hari ini cuma sisa **${stock.remaining.toLocaleString('id-ID')}**. Silakan pilih jumlah yang lebih kecil.`
+            : '🔴 Stock Robux hari ini sudah habis. Silakan coba lagi besok atau tunggu stock di-update.',
+        embeds: [buildRobuxAmountEmbed(pending)],
+        components:
+          stock.remaining > 0
+            ? buildRobuxAmountComponents(config.store.robuxOptions, config.store.robuxRatePer100)
+            : [],
+      });
+      return;
+    }
+
     // Pengaman terakhir (antisipasi race condition di langkah paling akhir
     // sebelum channel ticket benar-benar dibuat).
     const existingTicket =
@@ -1677,7 +1748,6 @@ client.on('interactionCreate', async (interaction) => {
     await interaction.deferUpdate();
     await interaction.editReply({ content: '⏳ Membuat ticket...', embeds: [], components: [] });
 
-    const amount = Number(interaction.values[0]);
     const price = priceForRobux(amount, config.store.robuxRatePer100);
 
     let ticketChannel;
@@ -1693,6 +1763,17 @@ client.on('interactionCreate', async (interaction) => {
     }
 
     pendingRobuxFlow.delete(key);
+
+    // Potong stock harian. Kalau jadi habis (sisa 0), toko otomatis ditutup
+    // & panel di-refresh supaya dropdown produk langsung terkunci.
+    const updatedStock = stockStore.reserveStock(amount);
+    if (updatedStock.total !== null && updatedStock.remaining !== null && updatedStock.remaining <= 0) {
+      storePanelStore.setStoreOpen(false, 'stock');
+    }
+    await refreshStorePanel(interaction.client).catch((error) =>
+      console.error('[store] Gagal refresh panel Store (stock):', error)
+    );
+
     await interaction.editReply({
       content: `✅ Ticket berhasil dibuat! Lanjut ke <#${ticketChannel.id}> untuk menyelesaikan pembayaran.`,
     });
@@ -1738,6 +1819,19 @@ client.on('interactionCreate', async (interaction) => {
         })
         .catch(() => null);
     } else {
+      // Cancelled/Refund -- kembalikan stock Robux yang sempat dipotong.
+      // Kalau toko auto-closed karena stock habis dan sekarang ada sisa
+      // lagi, buka otomatis (tapi JANGAN sentuh kalau yang nutup toko itu
+      // admin manual lewat /toko-tutup).
+      const updatedStock = stockStore.releaseStock(ticket.robuxAmount);
+      const closedReason = storePanelStore.getStoreClosedReason();
+      if (closedReason === 'stock' && updatedStock.remaining !== null && updatedStock.remaining > 0) {
+        storePanelStore.setStoreOpen(true);
+      }
+      await refreshStorePanel(interaction.client).catch((error) =>
+        console.error('[store] Gagal refresh panel Store (stock dikembalikan):', error)
+      );
+
       await interaction.channel
         .send(
           `🔒 Ticket ditutup (**${reasonMeta.label}**) oleh <@${interaction.user.id}>. Channel ini akan dihapus dalam 10 detik.`
