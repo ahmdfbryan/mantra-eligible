@@ -90,6 +90,7 @@ const {
 
 const RULES_GIF_PATH = path.join(__dirname, '..', 'assets', 'rules-banner.gif');
 const CHECKIN_GIF_PATH = path.join(__dirname, '..', 'assets', 'checkin-banner.gif');
+const STORE_GIF_PATH = path.join(__dirname, '..', 'assets', 'store-banner.gif');
 
 // ==== Store / Ticket Order ====
 const ticketStore = require('./store/ticketStore');
@@ -809,6 +810,7 @@ async function refreshStorePanel(client) {
   const message = await channel.messages.fetch(panel.messageId).catch(() => null);
   if (!message) return;
 
+  const attachmentName = 'store-banner.gif';
   await message
     .edit({
       embeds: [
@@ -816,11 +818,11 @@ async function refreshStorePanel(client) {
           guild: channel.guild,
           communityName: config.community.name,
           open: panel.open,
-          robuxOptions: config.store.robuxOptions,
-          robuxRatePer100: config.store.robuxRatePer100,
+          attachmentName,
         }),
       ],
       components: buildStorePanelComponents({ open: panel.open }),
+      files: [new AttachmentBuilder(STORE_GIF_PATH, { name: attachmentName })],
     })
     .catch((error) => console.error('[store] Gagal refresh panel Store:', error));
 }
@@ -839,17 +841,18 @@ async function handleTokoPanelCommand(interaction) {
   }
 
   const open = existing?.open ?? true;
+  const attachmentName = 'store-banner.gif';
   const panelMessage = await interaction.channel.send({
     embeds: [
       buildStorePanelEmbed({
         guild: interaction.guild,
         communityName: config.community.name,
         open,
-        robuxOptions: config.store.robuxOptions,
-        robuxRatePer100: config.store.robuxRatePer100,
+        attachmentName,
       }),
     ],
     components: buildStorePanelComponents({ open }),
+    files: [new AttachmentBuilder(STORE_GIF_PATH, { name: attachmentName })],
   });
 
   storePanelStore.setStorePanel({ channelId: interaction.channelId, messageId: panelMessage.id, open });
@@ -1847,6 +1850,7 @@ client.on('interactionCreate', async (interaction) => {
             buildTestimonialEmbed({
               ticketNumber: ticket.ticketNumber,
               buyerId: ticket.buyerId,
+              buyerUsername: buyerUser?.username || null,
               adminHandlerId: ticket.adminHandlerId,
               productLabel: `${robuxEmojiTag()} Robux (${ticket.robuxAmount})`,
               price: ticket.price,
