@@ -146,6 +146,17 @@ const commands = [
     .setName('toko-leaderboard')
     .setDescription('Pasang panel "Top 10 Spender Leaderboard" (live, auto-update) di channel ini')
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
+  new SlashCommandBuilder()
+    .setName('toko-stock')
+    .setDescription('Set stock Robux hari ini (toko otomatis dibuka & diumumkan ke channel stock)')
+    .addIntegerOption((option) =>
+      option
+        .setName('jumlah')
+        .setDescription('Jumlah stock Robux hari ini, contoh 5000')
+        .setMinValue(1)
+        .setRequired(true)
+    )
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
 ].map((command) => command.toJSON());
 
 const rest = new REST({ version: '10' }).setToken(config.discordToken);
