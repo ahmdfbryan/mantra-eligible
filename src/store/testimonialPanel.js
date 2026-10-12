@@ -42,10 +42,9 @@ function buildTestimonialEmbed({
 
   return new EmbedBuilder()
     .setColor(COLOR_PINK)
-    .setTitle(`TESTIMONI #${ticketNumber}`)
+    .setTitle(`📝 TESTIMONI #${ticketNumber}`)
     .setDescription(description)
-    .setThumbnail(buyerAvatarUrl || null)
-    .setTimestamp(new Date());
+    .setThumbnail(buyerAvatarUrl || null);
 }
 
 module.exports = { buildTestimonialEmbed };
