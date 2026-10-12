@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits, PermissionFlagsBits, AttachmentBuilder } = require('discord.js');
+const { Client, GatewayIntentBits, PermissionFlagsBits, AttachmentBuilder, ChannelType } = require('discord.js');
 const config = require('./config');
 const { lookupMember, getGroupIconUrl, RobloxApiError } = require('./roblox');
 const {
@@ -7,6 +7,7 @@ const {
   buildUsernameNotFoundEmbed,
   buildErrorEmbed,
   buildProfileButtonRow,
+  daysBetween,
 } = require('./ui');
 const {
   CHECK_BUTTON_ID,
@@ -89,6 +90,58 @@ const {
 
 const RULES_GIF_PATH = path.join(__dirname, '..', 'assets', 'rules-banner.gif');
 const CHECKIN_GIF_PATH = path.join(__dirname, '..', 'assets', 'checkin-banner.gif');
+
+// ==== Store / Ticket Order ====
+const ticketStore = require('./store/ticketStore');
+const storePanelStore = require('./store/storePanelStore');
+const { getOrCreateTicketCategory } = require('./store/ticketCategory');
+const {
+  PRODUCT_SELECT_ID: STORE_PRODUCT_SELECT_ID,
+  PRODUCT_ROBUX,
+  PRODUCT_COMING_SOON,
+  priceForRobux,
+  buildStorePanelEmbed,
+  buildStorePanelComponents,
+} = require('./store/storePanel');
+const {
+  USERNAME_MODAL_ID: STORE_USERNAME_MODAL_ID,
+  USERNAME_INPUT_ID: STORE_USERNAME_INPUT_ID,
+  BTN_CONFIRM_YES: STORE_BTN_CONFIRM_YES,
+  BTN_CONFIRM_NO: STORE_BTN_CONFIRM_NO,
+  ROBUX_AMOUNT_SELECT_ID: STORE_ROBUX_AMOUNT_SELECT_ID,
+  buildRobloxUsernameModal,
+  buildConfirmAccountEmbed,
+  buildConfirmAccountComponents,
+  buildRobuxAmountComponents,
+  buildRobuxAmountEmbed,
+} = require('./store/robuxFlow');
+const {
+  BTN_CLOSE_TICKET: STORE_BTN_CLOSE_TICKET,
+  CLOSE_REASON_SELECT_ID: STORE_CLOSE_REASON_SELECT_ID,
+  CLOSE_REASON_LABELS: STORE_CLOSE_REASON_LABELS,
+  TESTIMONIAL_RATING_SELECT_ID: STORE_TESTIMONIAL_RATING_SELECT_ID,
+  BTN_TESTIMONIAL_SKIP: STORE_BTN_TESTIMONIAL_SKIP,
+  TESTIMONIAL_COMMENT_MODAL_ID: STORE_TESTIMONIAL_COMMENT_MODAL_ID,
+  TESTIMONIAL_COMMENT_INPUT_ID: STORE_TESTIMONIAL_COMMENT_INPUT_ID,
+  buildTicketEmbed,
+  buildTicketComponents,
+  buildCloseReasonComponents,
+  buildTestimonialPromptEmbed,
+  buildTestimonialRatingComponents,
+  buildTestimonialCommentModal,
+  buildTicketDmEmbed,
+  buildTicketDmComponents,
+} = require('./store/ticketPanel');
+const { buildTestimonialEmbed } = require('./store/testimonialPanel');
+const { buildLeaderboardEmbed: buildStoreLeaderboardEmbed } = require('./store/leaderboardPanel');
+
+// State sementara (in-memory, bukan persisted) buat alur beli Robux antara
+// modal username -> confirm akun -> pilih jumlah. Hilang kalau bot restart
+// di tengah alur -- aman, user tinggal pilih produk lagi dari panel.
+const pendingRobuxFlow = new Map();
+function robuxFlowKey(guildId, userId) {
+  return `${guildId}:${userId}`;
+}
 
 const client = new Client({
   // GuildMembers (privileged) wajib diaktifkan juga di Discord Developer
@@ -739,6 +792,215 @@ async function handleCheckinCommand(interaction) {
   });
 }
 
+// ==================== Store / Ticket Order ====================
+
+/**
+ * Edit ulang pesan panel Store (sticky) -- dipanggil tiap kali status
+ * buka/tutup toko berubah, supaya field "Status Toko" & dropdown produk
+ * langsung ter-refresh tanpa perlu /toko-panel ulang.
+ */
+async function refreshStorePanel(client) {
+  const panel = storePanelStore.getStorePanel();
+  if (!panel) return;
+
+  const channel = await client.channels.fetch(panel.channelId).catch(() => null);
+  if (!channel) return;
+  const message = await channel.messages.fetch(panel.messageId).catch(() => null);
+  if (!message) return;
+
+  await message
+    .edit({
+      embeds: [
+        buildStorePanelEmbed({
+          guild: channel.guild,
+          communityName: config.community.name,
+          open: panel.open,
+          robuxOptions: config.store.robuxOptions,
+          robuxRatePer100: config.store.robuxRatePer100,
+        }),
+      ],
+      components: buildStorePanelComponents({ open: panel.open }),
+    })
+    .catch((error) => console.error('[store] Gagal refresh panel Store:', error));
+}
+
+async function handleTokoPanelCommand(interaction) {
+  if (!requireManageGuild(interaction)) return;
+  await interaction.deferReply({ ephemeral: true });
+
+  const existing = storePanelStore.getStorePanel();
+  if (existing?.messageId) {
+    const oldChannel = await interaction.client.channels.fetch(existing.channelId).catch(() => null);
+    if (oldChannel) {
+      const oldMessage = await oldChannel.messages.fetch(existing.messageId).catch(() => null);
+      if (oldMessage) await oldMessage.delete().catch(() => null);
+    }
+  }
+
+  const open = existing?.open ?? true;
+  const panelMessage = await interaction.channel.send({
+    embeds: [
+      buildStorePanelEmbed({
+        guild: interaction.guild,
+        communityName: config.community.name,
+        open,
+        robuxOptions: config.store.robuxOptions,
+        robuxRatePer100: config.store.robuxRatePer100,
+      }),
+    ],
+    components: buildStorePanelComponents({ open }),
+  });
+
+  storePanelStore.setStorePanel({ channelId: interaction.channelId, messageId: panelMessage.id, open });
+  await interaction.editReply('✅ Panel Store dipasang & live di channel ini.');
+}
+
+async function handleTokoBukaCommand(interaction) {
+  if (!requireManageGuild(interaction)) return;
+  await interaction.deferReply({ ephemeral: true });
+  storePanelStore.setStoreOpen(true);
+  await refreshStorePanel(interaction.client);
+  await interaction.editReply('🟢 Toko dibuka -- member sekarang bisa pilih produk di panel Store.');
+}
+
+async function handleTokoTutupCommand(interaction) {
+  if (!requireManageGuild(interaction)) return;
+  await interaction.deferReply({ ephemeral: true });
+  storePanelStore.setStoreOpen(false);
+  await refreshStorePanel(interaction.client);
+  await interaction.editReply('🔴 Toko ditutup -- dropdown produk di panel Store otomatis terkunci.');
+}
+
+async function refreshStoreLeaderboard(client) {
+  const panel = storePanelStore.getLeaderboardPanel();
+  if (!panel) return;
+
+  const channel = await client.channels.fetch(panel.channelId).catch(() => null);
+  if (!channel) return;
+  const message = await channel.messages.fetch(panel.messageId).catch(() => null);
+  if (!message) return;
+
+  const guildIconUrl = channel.guild?.iconURL({ size: 256 }) || null;
+  await message
+    .edit({ embeds: [buildStoreLeaderboardEmbed({ guildIconUrl, communityName: config.community.name })] })
+    .catch((error) => console.error('[store] Gagal refresh leaderboard Store:', error));
+}
+
+async function handleTokoLeaderboardCommand(interaction) {
+  if (!requireManageGuild(interaction)) return;
+  await interaction.deferReply({ ephemeral: true });
+
+  const existing = storePanelStore.getLeaderboardPanel();
+  if (existing?.messageId) {
+    const oldChannel = await interaction.client.channels.fetch(existing.channelId).catch(() => null);
+    if (oldChannel) {
+      const oldMessage = await oldChannel.messages.fetch(existing.messageId).catch(() => null);
+      if (oldMessage) await oldMessage.delete().catch(() => null);
+    }
+  }
+
+  const guildIconUrl = interaction.guild?.iconURL({ size: 256 }) || null;
+  const panelMessage = await interaction.channel.send({
+    embeds: [buildStoreLeaderboardEmbed({ guildIconUrl, communityName: config.community.name })],
+  });
+
+  storePanelStore.setLeaderboardPanel({ channelId: interaction.channelId, messageId: panelMessage.id });
+  await interaction.editReply('✅ Panel Top 10 Spender Leaderboard dipasang & live di channel ini.');
+}
+
+/**
+ * Buat channel ticket privat (category auto-split tiap 50 channel), simpan
+ * datanya, kirim embed order ke dalam ticket, dan DM buyer info ticketnya.
+ */
+async function createRobuxTicket(interaction, pending, robuxAmount, price) {
+  const guild = interaction.guild;
+  const category = await getOrCreateTicketCategory(guild);
+  const { padded } = ticketStore.nextTicketNumber();
+
+  const channel = await guild.channels.create({
+    name: `ticket-${padded}`,
+    type: ChannelType.GuildText,
+    parent: category.id,
+    permissionOverwrites: [
+      { id: guild.roles.everyone.id, deny: [PermissionFlagsBits.ViewChannel] },
+      {
+        id: interaction.user.id,
+        allow: [
+          PermissionFlagsBits.ViewChannel,
+          PermissionFlagsBits.SendMessages,
+          PermissionFlagsBits.ReadMessageHistory,
+        ],
+      },
+      {
+        id: config.store.staffRoleId,
+        allow: [
+          PermissionFlagsBits.ViewChannel,
+          PermissionFlagsBits.SendMessages,
+          PermissionFlagsBits.ReadMessageHistory,
+          PermissionFlagsBits.ManageMessages,
+        ],
+      },
+      {
+        id: interaction.client.user.id,
+        allow: [
+          PermissionFlagsBits.ViewChannel,
+          PermissionFlagsBits.SendMessages,
+          PermissionFlagsBits.ReadMessageHistory,
+          PermissionFlagsBits.ManageChannels,
+        ],
+      },
+    ],
+  });
+
+  ticketStore.createTicket(channel.id, {
+    ticketNumber: padded,
+    guildId: guild.id,
+    buyerId: interaction.user.id,
+    product: 'robux',
+    robloxUsername: pending.robloxUsername,
+    robloxUserId: pending.robloxUserId,
+    robuxAmount,
+    price,
+  });
+
+  await channel.send({
+    content: `<@${interaction.user.id}> <@&${config.store.staffRoleId}>`,
+    embeds: [
+      buildTicketEmbed({
+        ticketNumber: padded,
+        buyerId: interaction.user.id,
+        robloxUsername: pending.robloxUsername,
+        robuxAmount,
+        price,
+        status: 'open',
+      }),
+    ],
+    components: buildTicketComponents(),
+  });
+
+  const dmEmbed = buildTicketDmEmbed({
+    communityName: config.community.name,
+    ticketNumber: padded,
+    productLabel: `💎 Robux (${robuxAmount})`,
+  });
+  await interaction.user
+    .send({ embeds: [dmEmbed], components: buildTicketDmComponents(channel.url) })
+    .catch((error) => console.warn('[store] Gagal DM buyer (kemungkinan DM ditutup):', error.message));
+
+  return channel;
+}
+
+/**
+ * Hapus channel ticket setelah jeda singkat -- dipanggil begitu ticket
+ * selesai ditutup (Cancelled/Refund langsung, atau Completed setelah
+ * testimoni diisi/dilewati).
+ */
+function scheduleTicketDeletion(channel, delayMs = 10000) {
+  setTimeout(() => {
+    channel.delete().catch((error) => console.error('[store] Gagal hapus channel ticket:', error));
+  }, delayMs);
+}
+
 /**
  * Jadwalkan repost panel supaya tetap jadi pesan paling bawah/terbaru
  * (sticky), dengan debounce supaya tidak spam saat chat lagi ramai.
@@ -1316,6 +1578,322 @@ client.on('interactionCreate', async (interaction) => {
       return;
     }
 
+    if (interaction.commandName === 'toko-panel') {
+      await handleTokoPanelCommand(interaction);
+      return;
+    }
+
+    if (interaction.commandName === 'toko-buka') {
+      await handleTokoBukaCommand(interaction);
+      return;
+    }
+
+    if (interaction.commandName === 'toko-tutup') {
+      await handleTokoTutupCommand(interaction);
+      return;
+    }
+
+    if (interaction.commandName === 'toko-leaderboard') {
+      await handleTokoLeaderboardCommand(interaction);
+      return;
+    }
+
+    return;
+  }
+
+  // ==== Dropdown & tombol/modal fitur Store/Ticket Order ====
+  // Ditaruh di awal (sebelum handler tombol/modal lain) karena di bawah ada
+  // 2 blok "catch-all" (`if (interaction.isButton())` / `if
+  // (interaction.isModalSubmit())`) yang langsung `return` apa pun
+  // customId-nya -- kalau blok Store ditaruh setelah itu, interaksinya akan
+  // "ketelan" duluan dan tidak pernah sampai ke sini.
+  if (interaction.isStringSelectMenu() && interaction.customId === STORE_PRODUCT_SELECT_ID) {
+    const value = interaction.values[0];
+
+    if (value === PRODUCT_COMING_SOON) {
+      await interaction.reply({ content: '🕒 Produk ini **Coming Soon**, belum tersedia sekarang.', ephemeral: true });
+      return;
+    }
+
+    if (value === PRODUCT_ROBUX) {
+      const panel = storePanelStore.getStorePanel();
+      if (panel && panel.open === false) {
+        await interaction.reply({ content: '🔴 Toko sedang tutup, coba lagi nanti ya.', ephemeral: true });
+        return;
+      }
+      await interaction.showModal(buildRobloxUsernameModal());
+      return;
+    }
+
+    return;
+  }
+
+  if (interaction.isStringSelectMenu() && interaction.customId === STORE_ROBUX_AMOUNT_SELECT_ID) {
+    const key = robuxFlowKey(interaction.guildId, interaction.user.id);
+    const pending = pendingRobuxFlow.get(key);
+    if (!pending) {
+      await interaction.update({
+        content: '⚠️ Sesi order sudah kedaluwarsa. Silakan pilih produk lagi dari panel Store.',
+        embeds: [],
+        components: [],
+      });
+      return;
+    }
+
+    await interaction.deferUpdate();
+    await interaction.editReply({ content: '⏳ Membuat ticket...', embeds: [], components: [] });
+
+    const amount = Number(interaction.values[0]);
+    const price = priceForRobux(amount, config.store.robuxRatePer100);
+
+    let ticketChannel;
+    try {
+      ticketChannel = await createRobuxTicket(interaction, pending, amount, price);
+    } catch (error) {
+      console.error('[store] Gagal bikin ticket Robux:', error);
+      pendingRobuxFlow.delete(key);
+      await interaction.editReply({
+        content: '❌ Gagal membuat ticket. Coba lagi beberapa saat, atau hubungi staff.',
+      });
+      return;
+    }
+
+    pendingRobuxFlow.delete(key);
+    await interaction.editReply({
+      content: `✅ Ticket berhasil dibuat! Lanjut ke <#${ticketChannel.id}> untuk menyelesaikan pembayaran.`,
+    });
+    return;
+  }
+
+  if (interaction.isStringSelectMenu() && interaction.customId === STORE_CLOSE_REASON_SELECT_ID) {
+    const reason = interaction.values[0];
+    const reasonMeta = STORE_CLOSE_REASON_LABELS[reason];
+    const ticket = ticketStore.getTicket(interaction.channelId);
+
+    if (!ticket || !reasonMeta) {
+      await interaction.update({ content: '⚠️ Data ticket tidak ditemukan.', components: [] });
+      return;
+    }
+
+    ticketStore.updateTicket(interaction.channelId, {
+      status: reason,
+      adminHandlerId: interaction.user.id,
+      closedAt: Date.now(),
+    });
+
+    await interaction.update({ content: `✅ Ticket ditandai **${reasonMeta.label}**.`, components: [] });
+
+    await interaction.channel.permissionOverwrites
+      .edit(ticket.buyerId, { SendMessages: reason === 'completed' })
+      .catch(() => null);
+
+    if (reason === 'completed') {
+      ticketStore.addSpend(ticket.buyerId, ticket.price);
+      refreshStoreLeaderboard(interaction.client).catch((error) =>
+        console.error('[store] Gagal refresh leaderboard Store:', error)
+      );
+
+      await interaction.channel
+        .send({
+          content: `<@${ticket.buyerId}>`,
+          embeds: [buildTestimonialPromptEmbed()],
+          components: buildTestimonialRatingComponents(),
+        })
+        .catch(() => null);
+    } else {
+      await interaction.channel
+        .send(
+          `🔒 Ticket ditutup (**${reasonMeta.label}**) oleh <@${interaction.user.id}>. Channel ini akan dihapus dalam 10 detik.`
+        )
+        .catch(() => null);
+      scheduleTicketDeletion(interaction.channel);
+    }
+    return;
+  }
+
+  if (interaction.isStringSelectMenu() && interaction.customId === STORE_TESTIMONIAL_RATING_SELECT_ID) {
+    const ticket = ticketStore.getTicket(interaction.channelId);
+    if (!ticket || interaction.user.id !== ticket.buyerId) {
+      await interaction.reply({ content: '❌ Cuma pembeli yang bisa kasih testimoni di ticket ini.', ephemeral: true });
+      return;
+    }
+
+    ticketStore.updateTicket(interaction.channelId, { pendingRating: Number(interaction.values[0]) });
+    await interaction.showModal(buildTestimonialCommentModal());
+    return;
+  }
+
+  // ==== Modal username Roblox dari dropdown produk "Robux" -> lookup +
+  // tampilkan embed "Confirm Your Roblox Account" ====
+  if (interaction.isModalSubmit() && interaction.customId === STORE_USERNAME_MODAL_ID) {
+    const username = interaction.fields.getTextInputValue(STORE_USERNAME_INPUT_ID).trim();
+    await interaction.deferReply({ ephemeral: true });
+
+    let member;
+    try {
+      member = await lookupMember(username);
+    } catch (error) {
+      if (error instanceof RobloxApiError) {
+        if (error.code === 'USER_NOT_FOUND') {
+          await interaction.editReply(`🔎 Username Roblox \`${username}\` tidak ditemukan. Pilih produk lagi dari panel Store untuk coba ulang.`);
+          return;
+        }
+        if (error.code === 'NOT_MEMBER') {
+          await interaction.editReply(
+            `❌ Username ini valid, tapi **belum bergabung** ke komunitas Roblox **${config.community.name}**. Join dulu, lalu coba lagi.`
+          );
+          return;
+        }
+        await interaction.editReply(`⚠️ Gagal menghubungi Roblox API: ${error.message}`);
+        return;
+      }
+
+      console.error('[store] Unexpected error saat lookup Roblox:', error);
+      await interaction.editReply('⚠️ Terjadi kesalahan tak terduga. Coba lagi beberapa saat.');
+      return;
+    }
+
+    pendingRobuxFlow.set(robuxFlowKey(interaction.guildId, interaction.user.id), {
+      robloxUsername: member.username,
+      robloxDisplayName: member.displayName,
+      robloxUserId: member.id,
+      avatarUrl: member.avatarUrl,
+      joinedAt: member.joinedAt,
+    });
+
+    await interaction.editReply({
+      embeds: [buildConfirmAccountEmbed(member)],
+      components: buildConfirmAccountComponents(),
+    });
+    return;
+  }
+
+  // ==== Submit komentar testimoni -> post ke channel testimoni + tutup ticket ====
+  if (interaction.isModalSubmit() && interaction.customId === STORE_TESTIMONIAL_COMMENT_MODAL_ID) {
+    const ticket = ticketStore.getTicket(interaction.channelId);
+    if (!ticket) {
+      await interaction.reply({ content: '⚠️ Data ticket tidak ditemukan.', ephemeral: true });
+      return;
+    }
+
+    const comment = interaction.fields.getTextInputValue(STORE_TESTIMONIAL_COMMENT_INPUT_ID).trim();
+    const rating = ticket.pendingRating || 5;
+
+    ticketStore.setTestimonial(interaction.channelId, { rating, comment });
+    await interaction.reply({ content: '✅ Terima kasih atas testimoninya!', ephemeral: true });
+
+    const testimonialChannel = await interaction.client.channels
+      .fetch(config.store.testimonialChannelId)
+      .catch(() => null);
+
+    if (testimonialChannel) {
+      const buyerUser = await interaction.client.users.fetch(ticket.buyerId).catch(() => null);
+      const totalSpend = ticketStore.getTotalSpend(ticket.buyerId);
+
+      await testimonialChannel
+        .send({
+          embeds: [
+            buildTestimonialEmbed({
+              ticketNumber: ticket.ticketNumber,
+              buyerId: ticket.buyerId,
+              adminHandlerId: ticket.adminHandlerId,
+              productLabel: `💎 Robux (${ticket.robuxAmount})`,
+              price: ticket.price,
+              rating,
+              comment,
+              buyerAvatarUrl: buyerUser?.displayAvatarURL({ extension: 'png', size: 256 }) || null,
+              totalSpend,
+            }),
+          ],
+        })
+        .catch((error) => console.error('[store] Gagal kirim testimoni:', error));
+    }
+
+    await interaction.channel
+      .send('🔒 Testimoni berhasil dikirim, ticket akan ditutup. Channel ini akan dihapus dalam 10 detik.')
+      .catch(() => null);
+    await interaction.channel.permissionOverwrites.edit(ticket.buyerId, { SendMessages: false }).catch(() => null);
+    scheduleTicketDeletion(interaction.channel);
+    return;
+  }
+
+  // ==== Tombol konfirmasi akun Roblox "Ya, Lanjutkan" / "Tidak, Batalkan" ====
+  if (interaction.isButton() && (interaction.customId === STORE_BTN_CONFIRM_YES || interaction.customId === STORE_BTN_CONFIRM_NO)) {
+    const key = robuxFlowKey(interaction.guildId, interaction.user.id);
+    const pending = pendingRobuxFlow.get(key);
+
+    if (!pending) {
+      await interaction.update({
+        content: '⚠️ Sesi order sudah kedaluwarsa. Silakan pilih produk lagi dari panel Store.',
+        embeds: [],
+        components: [],
+      });
+      return;
+    }
+
+    if (interaction.customId === STORE_BTN_CONFIRM_NO) {
+      pendingRobuxFlow.delete(key);
+      await interaction.update({
+        content: '❌ Dibatalkan. Silakan pilih produk lagi di panel Store kalau mau order ulang.',
+        embeds: [],
+        components: [],
+      });
+      return;
+    }
+
+    // Eligibility check -- pakai eligibilityDays yang sama dengan /verifikasi.
+    const joinedDays = daysBetween(pending.joinedAt, new Date());
+    const isEligible = joinedDays >= config.eligibilityDays;
+
+    if (!isEligible) {
+      pendingRobuxFlow.delete(key);
+      await interaction.update({
+        content: `❌ Akun Roblox \`${pending.robloxUsername}\` belum eligible (baru bergabung **${joinedDays} hari**, minimal **${config.eligibilityDays} hari**). Belum bisa lanjut transaksi.`,
+        embeds: [],
+        components: [],
+      });
+      return;
+    }
+
+    await interaction.update({
+      embeds: [buildRobuxAmountEmbed(pending)],
+      components: buildRobuxAmountComponents(config.store.robuxOptions, config.store.robuxRatePer100),
+    });
+    return;
+  }
+
+  // ==== Tombol "🔒 Tutup Ticket" di dalam channel ticket -> cuma staff ====
+  if (interaction.isButton() && interaction.customId === STORE_BTN_CLOSE_TICKET) {
+    const isStaff =
+      interaction.member?.roles.cache.has(config.store.staffRoleId) ||
+      interaction.guild.ownerId === interaction.user.id ||
+      interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild);
+
+    if (!isStaff) {
+      await interaction.reply({ content: '❌ Cuma staff yang bisa menutup ticket ini.', ephemeral: true });
+      return;
+    }
+
+    await interaction.reply({
+      content: 'Pilih alasan penutupan ticket:',
+      components: buildCloseReasonComponents(),
+      ephemeral: true,
+    });
+    return;
+  }
+
+  // ==== Tombol "Lewati" testimoni ====
+  if (interaction.isButton() && interaction.customId === STORE_BTN_TESTIMONIAL_SKIP) {
+    const ticket = ticketStore.getTicket(interaction.channelId);
+    if (!ticket || interaction.user.id !== ticket.buyerId) {
+      await interaction.reply({ content: '❌ Cuma pembeli yang bisa melewati testimoni di ticket ini.', ephemeral: true });
+      return;
+    }
+
+    await interaction.update({ content: '✅ Testimoni dilewati. Ticket akan ditutup.', embeds: [], components: [] });
+    await interaction.channel.send('🔒 Ticket ini akan dihapus dalam 10 detik.').catch(() => null);
+    await interaction.channel.permissionOverwrites.edit(ticket.buyerId, { SendMessages: false }).catch(() => null);
+    scheduleTicketDeletion(interaction.channel);
     return;
   }
 
