@@ -4,6 +4,7 @@ const {
   StringSelectMenuBuilder,
   StringSelectMenuOptionBuilder,
 } = require('discord.js');
+const config = require('../config');
 
 const COLOR_PINK = 0xff2f9c;
 const DIVIDER = '⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯';
@@ -11,6 +12,15 @@ const DIVIDER = '⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
 const PRODUCT_SELECT_ID = 'store_product_select';
 const PRODUCT_ROBUX = 'robux';
 const PRODUCT_COMING_SOON = 'coming_soon';
+
+// Emoji custom server buat ikon Robux (ganti emoji unicode 💎 di seluruh
+// panel Store/Ticket). Nama HARUS persis sama kayak nama emoji aslinya di
+// server supaya Discord bisa resolve gambarnya.
+const ROBUX_EMOJI = { id: config.store.robuxEmoji.id, name: config.store.robuxEmoji.name };
+
+function robuxEmojiTag() {
+  return ROBUX_EMOJI.id ? `<:${ROBUX_EMOJI.name}:${ROBUX_EMOJI.id}>` : '💎';
+}
 
 function formatRupiah(amount) {
   return `Rp${amount.toLocaleString('id-ID')}`;
@@ -72,7 +82,7 @@ function buildStorePanelComponents({ open }) {
         .setLabel('Robux')
         .setDescription('Top up Robux ke akun Roblox kamu')
         .setValue(PRODUCT_ROBUX)
-        .setEmoji('💎'),
+        .setEmoji(ROBUX_EMOJI),
       new StringSelectMenuOptionBuilder()
         .setLabel('Coming Soon')
         .setDescription('Produk lain segera hadir')
@@ -89,6 +99,8 @@ module.exports = {
   PRODUCT_SELECT_ID,
   PRODUCT_ROBUX,
   PRODUCT_COMING_SOON,
+  ROBUX_EMOJI,
+  robuxEmojiTag,
   formatRupiah,
   priceForRobux,
   buildStorePanelEmbed,
