@@ -9,7 +9,7 @@ const {
   StringSelectMenuBuilder,
   StringSelectMenuOptionBuilder,
 } = require('discord.js');
-const { COLOR_PINK, formatRupiah, priceForRobux } = require('./storePanel');
+const { COLOR_PINK, ROBUX_EMOJI, robuxEmojiTag, formatRupiah, priceForRobux } = require('./storePanel');
 
 const USERNAME_MODAL_ID = 'store_username_modal';
 const USERNAME_INPUT_ID = 'store_username_input';
@@ -72,7 +72,7 @@ function buildRobuxAmountComponents(robuxOptions, robuxRatePer100) {
           .setLabel(`${amount} Robux`)
           .setDescription(formatRupiah(priceForRobux(amount, robuxRatePer100)))
           .setValue(String(amount))
-          .setEmoji('💎')
+          .setEmoji(ROBUX_EMOJI)
       )
     );
 
@@ -82,7 +82,7 @@ function buildRobuxAmountComponents(robuxOptions, robuxRatePer100) {
 function buildRobuxAmountEmbed(robloxUser) {
   return new EmbedBuilder()
     .setColor(COLOR_PINK)
-    .setTitle('💎 Pilih Jumlah Robux')
+    .setTitle(`${robuxEmojiTag()} Pilih Jumlah Robux`)
     .setDescription(`Akun terverifikasi: \`${robloxUser.username}\`\n\nSilakan pilih jumlah Robux yang ingin dibeli.`);
 }
 
