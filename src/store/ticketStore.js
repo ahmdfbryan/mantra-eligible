@@ -162,6 +162,30 @@ function getTopSpenders(limit = 10) {
     .slice(0, limit);
 }
 
+/**
+ * Jumlah ticket yang sudah Completed (transaksi berhasil) -- dipakai buat
+ * statistik "Total Transaksi" di panel Store.
+ */
+function getCompletedCount() {
+  const data = readAll();
+  return Object.values(data.tickets).filter((t) => t.status === 'completed').length;
+}
+
+/**
+ * Rating rata-rata toko dari semua testimoni yang pernah masuk.
+ * @returns {{ average: number, count: number }}
+ */
+function getAverageRating() {
+  const data = readAll();
+  const ratings = Object.values(data.tickets)
+    .map((t) => t.testimonial?.rating)
+    .filter((r) => typeof r === 'number');
+
+  if (ratings.length === 0) return { average: 0, count: 0 };
+  const sum = ratings.reduce((a, b) => a + b, 0);
+  return { average: sum / ratings.length, count: ratings.length };
+}
+
 module.exports = {
   generateTicketId,
   getCategories,
@@ -175,4 +199,6 @@ module.exports = {
   addSpend,
   getTotalSpend,
   getTopSpenders,
+  getCompletedCount,
+  getAverageRating,
 };
