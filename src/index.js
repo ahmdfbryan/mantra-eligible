@@ -941,6 +941,31 @@ async function announceStockDepleted(client) {
     .catch((error) => console.error('[store] Gagal kirim pengumuman stock habis:', error));
 }
 
+/**
+ * Umumkan ke channel stock (tag @everyone) kalau ticket Robux dibatalkan
+ * (Cancelled/Refund) sehingga stock-nya dikembalikan. Cuma dikirim kalau
+ * stock harian memang sedang di-set (bukan mode unlimited).
+ */
+async function announceStockReleased(client, { ticketNumber, robuxAmount, reasonLabel, stock }) {
+  if (stock.total === null || stock.remaining === null) return;
+
+  const announceChannel = await client.channels.fetch(config.store.stockAnnounceChannelId).catch(() => null);
+  if (!announceChannel) return;
+
+  const embed = new EmbedBuilder()
+    .setColor(STORE_COLOR_PINK)
+    .setTitle(`${robuxEmojiTag()} Stock Robux Hari Ini`)
+    .setDescription(
+      `Ticket **#${ticketNumber}** di-${reasonLabel.toLowerCase()}, stock Robux dikembalikan.\n\n` +
+        `**Robux Dikembalikan** : ${robuxAmount.toLocaleString('id-ID')}\n` +
+        `**Sisa Stock Sekarang** : ${stock.remaining.toLocaleString('id-ID')} / ${stock.total.toLocaleString('id-ID')}`
+    );
+
+  await announceChannel
+    .send({ content: '@everyone', embeds: [embed], allowedMentions: { parse: ['everyone'] } })
+    .catch((error) => console.error('[store] Gagal kirim pengumuman stock dikembalikan:', error));
+}
+
 async function refreshStoreLeaderboard(client) {
   const panel = storePanelStore.getLeaderboardPanel();
   if (!panel) return;
@@ -1854,6 +1879,12 @@ client.on('interactionCreate', async (interaction) => {
       await refreshStorePanel(interaction.client).catch((error) =>
         console.error('[store] Gagal refresh panel Store (stock dikembalikan):', error)
       );
+      await announceStockReleased(interaction.client, {
+        ticketNumber: ticket.ticketNumber,
+        robuxAmount: ticket.robuxAmount,
+        reasonLabel: reasonMeta.label,
+        stock: updatedStock,
+      });
 
       await interaction.channel
         .send(
