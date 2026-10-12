@@ -28,11 +28,9 @@ function priceForRobux(amount, ratePer100) {
  * buka/tutup yang auto-refresh begitu admin jalankan /toko-buka atau
  * /toko-tutup (embed yang sama di-edit ulang, bukan dikirim pesan baru).
  */
-function buildStorePanelEmbed({ guild, communityName, open, robuxOptions, robuxRatePer100 }) {
+function buildStorePanelEmbed({ guild, communityName, open }) {
   const name = communityName || 'MANTRA CREATIVE';
   const iconURL = guild?.iconURL({ size: 128 }) || undefined;
-  const cheapest = robuxOptions[0];
-  const priceCheapest = priceForRobux(cheapest, robuxRatePer100);
 
   return new EmbedBuilder()
     .setColor(COLOR_PINK)
@@ -50,11 +48,6 @@ function buildStorePanelEmbed({ guild, communityName, open, robuxOptions, robuxR
           '3️⃣ Pilih jumlah/varian produk yang diinginkan\n' +
           '4️⃣ Ticket privat otomatis dibuat untuk lanjut ke pembayaran\n' +
           '5️⃣ Tunggu staff memproses & mengonfirmasi pesanan kamu',
-        inline: false,
-      },
-      {
-        name: '📦 Produk Tersedia',
-        value: `💎 **Robux** -- mulai dari **${cheapest} Robux** (${formatRupiah(priceCheapest)})\n🕒 **Coming Soon** -- produk lain segera hadir`,
         inline: false,
       },
       {
