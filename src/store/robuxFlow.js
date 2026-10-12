@@ -79,11 +79,11 @@ function buildRobuxAmountComponents(robuxOptions, robuxRatePer100) {
   return [new ActionRowBuilder().addComponents(select)];
 }
 
-function buildRobuxAmountEmbed(robloxUser) {
+function buildRobuxAmountEmbed(pending) {
   return new EmbedBuilder()
     .setColor(COLOR_PINK)
     .setTitle(`${robuxEmojiTag()} Pilih Jumlah Robux`)
-    .setDescription(`Akun terverifikasi: \`${robloxUser.username}\`\n\nSilakan pilih jumlah Robux yang ingin dibeli.`);
+    .setDescription(`Akun terverifikasi: \`${pending.robloxUsername}\`\n\nSilakan pilih jumlah Robux yang ingin dibeli.`);
 }
 
 module.exports = {
