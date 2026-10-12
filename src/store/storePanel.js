@@ -47,7 +47,7 @@ function buildStoreStatsText() {
 
   const ratingText = ratingCount > 0 ? `${average.toFixed(1)}/5 (${ratingCount} testimoni)` : 'Belum ada rating';
 
-  return `🧾 **Total Transaksi** : ${completedCount}\n⭐ **Rating Toko** : ${ratingText}`;
+  return `**Total Transaksi** : ${completedCount}\n**Rating Toko** : ${ratingText}`;
 }
 
 /**
@@ -61,7 +61,6 @@ function buildStorePanelEmbed({ guild, communityName, open, attachmentName }) {
 
   const embed = new EmbedBuilder()
     .setColor(COLOR_PINK)
-    .setAuthor({ name, iconURL })
     .setTitle('🛍️ MANTRA CREATIVE STORE')
     .setDescription(
       `Selamat datang di **${name} Store** -- tempat resmi buat top up & beli produk digital komunitas kami.\n${DIVIDER}`
