@@ -99,6 +99,7 @@ const {
   PRODUCT_SELECT_ID: STORE_PRODUCT_SELECT_ID,
   PRODUCT_ROBUX,
   PRODUCT_COMING_SOON,
+  robuxEmojiTag,
   priceForRobux,
   buildStorePanelEmbed,
   buildStorePanelComponents,
@@ -981,7 +982,7 @@ async function createRobuxTicket(interaction, pending, robuxAmount, price) {
   const dmEmbed = buildTicketDmEmbed({
     communityName: config.community.name,
     ticketNumber: padded,
-    productLabel: `💎 Robux (${robuxAmount})`,
+    productLabel: `${robuxEmojiTag()} Robux (${robuxAmount})`,
   });
   await interaction.user
     .send({ embeds: [dmEmbed], components: buildTicketDmComponents(channel.url) })
@@ -1797,7 +1798,7 @@ client.on('interactionCreate', async (interaction) => {
               ticketNumber: ticket.ticketNumber,
               buyerId: ticket.buyerId,
               adminHandlerId: ticket.adminHandlerId,
-              productLabel: `💎 Robux (${ticket.robuxAmount})`,
+              productLabel: `${robuxEmojiTag()} Robux (${ticket.robuxAmount})`,
               price: ticket.price,
               rating,
               comment,
