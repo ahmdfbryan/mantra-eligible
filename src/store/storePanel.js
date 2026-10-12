@@ -7,7 +7,10 @@ const {
 const config = require('../config');
 
 const COLOR_PINK = 0xff2f9c;
-const DIVIDER = '⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯';
+// Lebih pendek dari divider di panel lain (rolePanel.js dkk) -- yang versi
+// 25 karakter kepotong jadi 2 baris di layar HP (lebar sempit), ini aman di
+// HP maupun PC.
+const DIVIDER = '⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯';
 
 const PRODUCT_SELECT_ID = 'store_product_select';
 const PRODUCT_ROBUX = 'robux';
