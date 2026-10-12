@@ -6,6 +6,7 @@ const {
 } = require('discord.js');
 const config = require('../config');
 const ticketStore = require('./ticketStore');
+const stockStore = require('./stockStore');
 
 const COLOR_PINK = 0xff2f9c;
 // Lebih pendek dari divider di panel lain (rolePanel.js dkk) -- yang versi
@@ -24,6 +25,18 @@ const ROBUX_EMOJI = { id: config.store.robuxEmoji.id, name: config.store.robuxEm
 
 function robuxEmojiTag() {
   return ROBUX_EMOJI.id ? `<:${ROBUX_EMOJI.name}:${ROBUX_EMOJI.id}>` : '💎';
+}
+
+/**
+ * Teks "Stock Robux Hari Ini" -- kalau admin belum pernah /toko-stock,
+ * dianggap tidak dibatasi (tetap tampilkan status apa adanya).
+ */
+function buildStockText() {
+  const stock = stockStore.getStock();
+  if (stock.total === null || stock.remaining === null) {
+    return 'Belum di-set';
+  }
+  return `${stock.remaining.toLocaleString('id-ID')} / ${stock.total.toLocaleString('id-ID')} tersisa`;
 }
 
 function formatRupiah(amount) {
@@ -81,6 +94,11 @@ function buildStorePanelEmbed({ guild, communityName, open, attachmentName }) {
         value: open
           ? '🟢 **BUKA** — silakan pilih produk di bawah.'
           : '🔴 **TUTUP** — mohon tunggu sampai toko dibuka kembali.',
+        inline: false,
+      },
+      {
+        name: `${robuxEmojiTag()} Stock Robux Hari Ini`,
+        value: buildStockText(),
         inline: false,
       },
       {
