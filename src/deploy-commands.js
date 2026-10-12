@@ -130,6 +130,22 @@ const commands = [
     .setName('rules')
     .setDescription('Pasang panel "Server Rules" (gif + embed + tombol versi Bahasa Inggris) di channel ini')
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
+  new SlashCommandBuilder()
+    .setName('toko-panel')
+    .setDescription('Pasang panel "Store" (dropdown pilih produk) di channel ini')
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
+  new SlashCommandBuilder()
+    .setName('toko-buka')
+    .setDescription('Buka toko -- member bisa pilih produk di panel Store')
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
+  new SlashCommandBuilder()
+    .setName('toko-tutup')
+    .setDescription('Tutup toko -- dropdown produk di panel Store otomatis terkunci')
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
+  new SlashCommandBuilder()
+    .setName('toko-leaderboard')
+    .setDescription('Pasang panel "Top 10 Spender Leaderboard" (live, auto-update) di channel ini')
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
 ].map((command) => command.toJSON());
 
 const rest = new REST({ version: '10' }).setToken(config.discordToken);
