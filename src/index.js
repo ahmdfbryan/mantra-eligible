@@ -1726,6 +1726,9 @@ client.on('interactionCreate', async (interaction) => {
       refreshStoreLeaderboard(interaction.client).catch((error) =>
         console.error('[store] Gagal refresh leaderboard Store:', error)
       );
+      refreshStorePanel(interaction.client).catch((error) =>
+        console.error('[store] Gagal refresh panel Store (statistik):', error)
+      );
 
       await interaction.channel
         .send({
@@ -1835,6 +1838,10 @@ client.on('interactionCreate', async (interaction) => {
 
     ticketStore.setTestimonial(interaction.channelId, { rating, comment });
     await interaction.reply({ content: '✅ Terima kasih atas testimoninya!', ephemeral: true });
+
+    refreshStorePanel(interaction.client).catch((error) =>
+      console.error('[store] Gagal refresh panel Store (rating):', error)
+    );
 
     const testimonialChannel = await interaction.client.channels
       .fetch(config.store.testimonialChannelId)
