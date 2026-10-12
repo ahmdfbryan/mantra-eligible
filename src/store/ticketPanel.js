@@ -9,7 +9,7 @@ const {
   TextInputBuilder,
   TextInputStyle,
 } = require('discord.js');
-const { COLOR_PINK, DIVIDER, formatRupiah } = require('./storePanel');
+const { COLOR_PINK, DIVIDER, robuxEmojiTag, formatRupiah } = require('./storePanel');
 
 const BTN_CLOSE_TICKET = 'store_ticket_close';
 const CLOSE_REASON_SELECT_ID = 'store_ticket_close_reason';
@@ -53,7 +53,7 @@ function buildTicketEmbed({ ticketNumber, buyerId, robloxUsername, robuxAmount, 
       { name: 'Produk', value: 'Robux', inline: true },
       { name: 'Status', value: statusLabel, inline: true },
       { name: 'Username Roblox', value: `\`${robloxUsername}\``, inline: true },
-      { name: 'Jumlah Robux', value: `💎 ${robuxAmount} Robux`, inline: true },
+      { name: 'Jumlah Robux', value: `${robuxEmojiTag()} ${robuxAmount} Robux`, inline: true },
       { name: 'Harga', value: `${formatRupiah(price)}`, inline: true }
     )
     .setFooter({ text: `Order ID: #${ticketNumber}` })
