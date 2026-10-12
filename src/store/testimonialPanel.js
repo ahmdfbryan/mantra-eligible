@@ -4,8 +4,9 @@ const { COLOR_PINK, DIVIDER, formatRupiah } = require('./storePanel');
 /**
  * Embed testimoni yang diposting ke channel testimoni khusus, setelah
  * ticket ditutup dengan status Completed dan buyer mengisi rating+komentar.
- * Layout niru referensi "TESTIMONI 0078" -- tiap baris info pakai bullet
- * "»", dikelompokkan jadi beberapa field dipisah divider tipis.
+ * Semua konten ditaruh di 1 setDescription() (bukan addFields terpisah) --
+ * field Discord punya padding/nama sendiri yang bikin jarak kosong antar
+ * baris, description polos lebih rapat & konsisten kayak referensi.
  */
 function buildTestimonialEmbed({
   ticketNumber,
@@ -18,33 +19,34 @@ function buildTestimonialEmbed({
   comment,
   buyerAvatarUrl,
   totalSpend,
+  communityName,
 }) {
   const stars = '⭐'.repeat(Math.max(1, Math.min(5, rating)));
   const commentText = comment && comment.trim() ? comment.trim() : '-';
+  const name = communityName || 'MANTRA CREATIVE';
+
+  const description = [
+    DIVIDER,
+    `» **Buyer** : <@${buyerId}>${buyerUsername ? ` (\`${buyerUsername}\`)` : ''}`,
+    `» **Admin Handler** : <@${adminHandlerId}>`,
+    DIVIDER,
+    `» **Order ID** : #${ticketNumber}`,
+    `» **Produk** : ${productLabel}`,
+    `» **Harga** : ${formatRupiah(price)}`,
+    `» **Rating** : ${stars}`,
+    DIVIDER,
+    '**Komentar**',
+    `\`\`\`${commentText}\`\`\``,
+    DIVIDER,
+    `🐾 **Total Spend** : ${formatRupiah(totalSpend)}`,
+  ].join('\n');
 
   return new EmbedBuilder()
     .setColor(COLOR_PINK)
-    .setTitle(`TESTIMONI ${ticketNumber}`)
-    .addFields(
-      { name: '​', value: DIVIDER },
-      {
-        name: '​',
-        value:
-          `» **Buyer** : <@${buyerId}>${buyerUsername ? ` (\`${buyerUsername}\`)` : ''}\n` +
-          `» **Admin Handler** : <@${adminHandlerId}>`,
-      },
-      { name: '​', value: DIVIDER },
-      {
-        name: '​',
-        value: `» **Order ID** : ${ticketNumber}\n» **Produk** : ${productLabel}\n» **Harga** : ${formatRupiah(price)}`,
-      },
-      { name: '​', value: `» **Rating** : ${stars}` },
-      { name: '​', value: DIVIDER },
-      { name: '​', value: `**Komentar**\n> ${commentText}` },
-      { name: '​', value: DIVIDER },
-      { name: '​', value: `🐾 **Total Spend** : ${formatRupiah(totalSpend)}` }
-    )
+    .setTitle(`TESTIMONI #${ticketNumber}`)
+    .setDescription(description)
     .setThumbnail(buyerAvatarUrl || null)
+    .setFooter({ text: `Made by ${name} Store` })
     .setTimestamp(new Date());
 }
 
