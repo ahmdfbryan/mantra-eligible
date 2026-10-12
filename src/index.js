@@ -972,7 +972,7 @@ async function createRobuxTicket(interaction, pending, robuxAmount, price) {
   });
 
   await channel.send({
-    content: `<@${interaction.user.id}> <@&${config.store.staffRoleId}>`,
+    content: `<@${interaction.user.id}> <@&${config.store.staffRoleId}> <@${guild.ownerId}>`,
     embeds: [
       buildTicketEmbed({
         ticketNumber: ticketId,
