@@ -916,10 +916,14 @@ async function handleTokoLeaderboardCommand(interaction) {
 async function createRobuxTicket(interaction, pending, robuxAmount, price) {
   const guild = interaction.guild;
   const category = await getOrCreateTicketCategory(guild);
-  const { padded } = ticketStore.nextTicketNumber();
+  const ticketId = ticketStore.generateTicketId();
+
+  // Nama channel Discord cuma boleh huruf kecil/angka/strip -- username
+  // Roblox-nya disaring dulu biar aman kepakai di nama channel.
+  const safeUsername = pending.robloxUsername.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 20) || 'user';
 
   const channel = await guild.channels.create({
-    name: `ticket-${padded}`,
+    name: `ticket-${ticketId.toLowerCase()}-${safeUsername}`,
     type: ChannelType.GuildText,
     parent: category.id,
     permissionOverwrites: [
@@ -954,7 +958,7 @@ async function createRobuxTicket(interaction, pending, robuxAmount, price) {
   });
 
   ticketStore.createTicket(channel.id, {
-    ticketNumber: padded,
+    ticketNumber: ticketId,
     guildId: guild.id,
     buyerId: interaction.user.id,
     product: 'robux',
@@ -968,7 +972,7 @@ async function createRobuxTicket(interaction, pending, robuxAmount, price) {
     content: `<@${interaction.user.id}> <@&${config.store.staffRoleId}>`,
     embeds: [
       buildTicketEmbed({
-        ticketNumber: padded,
+        ticketNumber: ticketId,
         buyerId: interaction.user.id,
         robloxUsername: pending.robloxUsername,
         robuxAmount,
@@ -981,7 +985,7 @@ async function createRobuxTicket(interaction, pending, robuxAmount, price) {
 
   const dmEmbed = buildTicketDmEmbed({
     communityName: config.community.name,
-    ticketNumber: padded,
+    ticketNumber: ticketId,
     productLabel: `${robuxEmojiTag()} Robux (${robuxAmount})`,
   });
   await interaction.user
