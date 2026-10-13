@@ -90,13 +90,6 @@ function buildStorePanelEmbed({ guild, communityName, open, attachmentName }) {
         inline: false,
       },
       {
-        name: '📌 Status Toko',
-        value: open
-          ? '🟢 **BUKA** — silakan pilih produk di bawah.'
-          : '🔴 **TUTUP** — mohon tunggu sampai toko dibuka kembali.',
-        inline: false,
-      },
-      {
         name: `${robuxEmojiTag()} Stock Robux Hari Ini`,
         value: buildStockText(),
         inline: false,
