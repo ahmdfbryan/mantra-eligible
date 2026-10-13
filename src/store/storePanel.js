@@ -1,8 +1,8 @@
 const {
   EmbedBuilder,
   ActionRowBuilder,
-  StringSelectMenuBuilder,
-  StringSelectMenuOptionBuilder,
+  ButtonBuilder,
+  ButtonStyle,
 } = require('discord.js');
 const config = require('../config');
 const ticketStore = require('./ticketStore');
@@ -14,7 +14,12 @@ const COLOR_PINK = 0xff2f9c;
 // HP maupun PC.
 const DIVIDER = '⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯';
 
-const PRODUCT_SELECT_ID = 'store_product_select';
+// Dropdown produk diganti jadi tombol -- lebih enak diklik & kelihatan
+// jelas statusnya (aktif/nonaktif) langsung di panel, tanpa harus buka
+// dropdown dulu.
+const BTN_PRODUCT_ROBUX = 'store_btn_product_robux';
+const BTN_PRODUCT_COMING_SOON = 'store_btn_product_coming_soon';
+// Tetap disimpan untuk kompatibilitas penamaan produk di tempat lain.
 const PRODUCT_ROBUX = 'robux';
 const PRODUCT_COMING_SOON = 'coming_soon';
 
@@ -82,7 +87,7 @@ function buildStorePanelEmbed({ guild, communityName, open, attachmentName }) {
       {
         name: '🛒 Cara Pembelian',
         value:
-          '1️⃣ Pilih produk di dropdown di bawah\n' +
+          '1️⃣ Klik tombol produk di bawah\n' +
           '2️⃣ Ikuti proses verifikasi (khusus Robux: masukkan username Roblox kamu)\n' +
           '3️⃣ Pilih jumlah/varian produk yang diinginkan\n' +
           '4️⃣ Ticket privat otomatis dibuat untuk lanjut ke pembayaran\n' +
@@ -111,30 +116,28 @@ function buildStorePanelEmbed({ guild, communityName, open, attachmentName }) {
 }
 
 function buildStorePanelComponents({ open }) {
-  const select = new StringSelectMenuBuilder()
-    .setCustomId(PRODUCT_SELECT_ID)
-    .setPlaceholder(open ? 'Pilih produk yang ingin dibeli...' : 'Toko sedang tutup')
-    .setDisabled(!open)
-    .addOptions(
-      new StringSelectMenuOptionBuilder()
-        .setLabel('Robux')
-        .setDescription('Top up Robux ke akun Roblox kamu')
-        .setValue(PRODUCT_ROBUX)
-        .setEmoji(ROBUX_EMOJI),
-      new StringSelectMenuOptionBuilder()
-        .setLabel('Coming Soon')
-        .setDescription('Produk lain segera hadir')
-        .setValue(PRODUCT_COMING_SOON)
-        .setEmoji('🕒')
-    );
+  const robuxButton = new ButtonBuilder()
+    .setCustomId(BTN_PRODUCT_ROBUX)
+    .setLabel(open ? 'Beli Robux' : 'Toko Tutup')
+    .setStyle(open ? ButtonStyle.Success : ButtonStyle.Secondary)
+    .setEmoji(ROBUX_EMOJI)
+    .setDisabled(!open);
 
-  return [new ActionRowBuilder().addComponents(select)];
+  const comingSoonButton = new ButtonBuilder()
+    .setCustomId(BTN_PRODUCT_COMING_SOON)
+    .setLabel('Coming Soon')
+    .setStyle(ButtonStyle.Secondary)
+    .setEmoji('🕒')
+    .setDisabled(true);
+
+  return [new ActionRowBuilder().addComponents(robuxButton, comingSoonButton)];
 }
 
 module.exports = {
   COLOR_PINK,
   DIVIDER,
-  PRODUCT_SELECT_ID,
+  BTN_PRODUCT_ROBUX,
+  BTN_PRODUCT_COMING_SOON,
   PRODUCT_ROBUX,
   PRODUCT_COMING_SOON,
   ROBUX_EMOJI,
