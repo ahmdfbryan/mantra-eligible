@@ -99,9 +99,8 @@ const stockStore = require('./store/stockStore');
 const { getOrCreateTicketCategory } = require('./store/ticketCategory');
 const {
   COLOR_PINK: STORE_COLOR_PINK,
-  PRODUCT_SELECT_ID: STORE_PRODUCT_SELECT_ID,
-  PRODUCT_ROBUX,
-  PRODUCT_COMING_SOON,
+  BTN_PRODUCT_ROBUX: STORE_BTN_PRODUCT_ROBUX,
+  BTN_PRODUCT_COMING_SOON: STORE_BTN_PRODUCT_COMING_SOON,
   robuxEmojiTag,
   priceForRobux,
   buildStorePanelEmbed,
@@ -1705,41 +1704,35 @@ client.on('interactionCreate', async (interaction) => {
     return;
   }
 
-  // ==== Dropdown & tombol/modal fitur Store/Ticket Order ====
+  // ==== Tombol & modal fitur Store/Ticket Order ====
   // Ditaruh di awal (sebelum handler tombol/modal lain) karena di bawah ada
   // 2 blok "catch-all" (`if (interaction.isButton())` / `if
   // (interaction.isModalSubmit())`) yang langsung `return` apa pun
   // customId-nya -- kalau blok Store ditaruh setelah itu, interaksinya akan
   // "ketelan" duluan dan tidak pernah sampai ke sini.
-  if (interaction.isStringSelectMenu() && interaction.customId === STORE_PRODUCT_SELECT_ID) {
-    const value = interaction.values[0];
+  if (interaction.isButton() && interaction.customId === STORE_BTN_PRODUCT_COMING_SOON) {
+    await interaction.reply({ content: '🕒 Produk ini **Coming Soon**, belum tersedia sekarang.', ephemeral: true });
+    return;
+  }
 
-    if (value === PRODUCT_COMING_SOON) {
-      await interaction.reply({ content: '🕒 Produk ini **Coming Soon**, belum tersedia sekarang.', ephemeral: true });
+  if (interaction.isButton() && interaction.customId === STORE_BTN_PRODUCT_ROBUX) {
+    const panel = storePanelStore.getStorePanel();
+    if (panel && panel.open === false) {
+      await interaction.reply({ content: '🔴 Toko sedang tutup, coba lagi nanti ya.', ephemeral: true });
       return;
     }
 
-    if (value === PRODUCT_ROBUX) {
-      const panel = storePanelStore.getStorePanel();
-      if (panel && panel.open === false) {
-        await interaction.reply({ content: '🔴 Toko sedang tutup, coba lagi nanti ya.', ephemeral: true });
-        return;
-      }
-
-      // Pengaman: 1 orang cuma boleh punya 1 ticket aktif bersamaan.
-      const existingTicket = ticketStore.getOpenTicketByBuyer(interaction.user.id);
-      if (existingTicket) {
-        await interaction.reply({
-          content: `⚠️ Kamu masih punya ticket yang sedang berjalan di <#${existingTicket.channelId}>. Selesaikan/tunggu ticket itu ditutup dulu sebelum bikin ticket baru.`,
-          ephemeral: true,
-        });
-        return;
-      }
-
-      await interaction.showModal(buildRobloxUsernameModal());
+    // Pengaman: 1 orang cuma boleh punya 1 ticket aktif bersamaan.
+    const existingTicket = ticketStore.getOpenTicketByBuyer(interaction.user.id);
+    if (existingTicket) {
+      await interaction.reply({
+        content: `⚠️ Kamu masih punya ticket yang sedang berjalan di <#${existingTicket.channelId}>. Selesaikan/tunggu ticket itu ditutup dulu sebelum bikin ticket baru.`,
+        ephemeral: true,
+      });
       return;
     }
 
+    await interaction.showModal(buildRobloxUsernameModal());
     return;
   }
 
