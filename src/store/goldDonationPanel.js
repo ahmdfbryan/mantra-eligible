@@ -14,7 +14,7 @@ function buildGoldDonationEmbed({ guild, communityName } = {}) {
 
   return new EmbedBuilder()
     .setColor(COLOR_GOLD)
-    .setTitle('🟠 Gold Donation')
+    .setTitle('🪙 Gold Donation')
     .setDescription(
       `Setiap Gold yang kamu berikan adalah dukungan nyata untuk **${name}**. ` +
         'Dari sinilah kami terus mengembangkan komunitas, merawat setiap layanan, dan ' +
@@ -44,7 +44,7 @@ function buildGoldDonationEmbed({ guild, communityName } = {}) {
 function buildGoldDonationComponents() {
   const donateButton = new ButtonBuilder()
     .setLabel('Gold Donation')
-    .setEmoji('🟠')
+    .setEmoji('🪙')
     .setStyle(ButtonStyle.Link)
     .setURL(SAWERIA_URL);
 
