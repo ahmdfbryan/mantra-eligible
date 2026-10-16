@@ -137,6 +137,7 @@ const {
 } = require('./store/ticketPanel');
 const { buildTestimonialEmbed } = require('./store/testimonialPanel');
 const { buildLeaderboardEmbed: buildStoreLeaderboardEmbed } = require('./store/leaderboardPanel');
+const { buildGoldDonationEmbed, buildGoldDonationComponents } = require('./store/goldDonationPanel');
 
 // State sementara (in-memory, bukan persisted) buat alur beli Robux antara
 // modal username -> confirm akun -> pilih jumlah. Hilang kalau bot restart
@@ -1405,6 +1406,21 @@ async function handleRulesCommand(interaction) {
   await interaction.reply({ content: '✅ Panel Rules sudah dipasang di channel ini.', ephemeral: true });
 }
 
+/**
+ * Command /gold-donation -- pasang panel "Gold Donation" (embed + tombol
+ * link ke Saweria) di channel ini. Dikirim sebagai pesan biasa
+ * (channel.send), bukan balasan interaction, sama kayak /rules & /takerole.
+ */
+async function handleGoldDonationCommand(interaction) {
+  if (!requireManageGuild(interaction)) return;
+
+  await interaction.channel.send({
+    embeds: [buildGoldDonationEmbed({ guild: interaction.guild, communityName: config.community.name })],
+    components: buildGoldDonationComponents(),
+  });
+  await interaction.reply({ content: '✅ Panel Gold Donation sudah dipasang di channel ini.', ephemeral: true });
+}
+
 // Role gender saling eksklusif -- ambil salah satu otomatis lepas yang lain.
 const GENDER_ROLE_BY_BUTTON = {
   [BTN_GENDER_BOYS]: () => config.genderRoles.boys,
@@ -1673,6 +1689,11 @@ client.on('interactionCreate', async (interaction) => {
 
     if (interaction.commandName === 'rules') {
       await handleRulesCommand(interaction);
+      return;
+    }
+
+    if (interaction.commandName === 'gold-donation') {
+      await handleGoldDonationCommand(interaction);
       return;
     }
 
