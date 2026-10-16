@@ -131,6 +131,10 @@ const commands = [
     .setDescription('Pasang panel "Server Rules" (gif + embed + tombol versi Bahasa Inggris) di channel ini')
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
   new SlashCommandBuilder()
+    .setName('gold-donation')
+    .setDescription('Pasang panel "Gold Donation" (embed + tombol donasi Saweria) di channel ini')
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
+  new SlashCommandBuilder()
     .setName('toko-panel')
     .setDescription('Pasang panel "Store" (dropdown pilih produk) di channel ini')
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
