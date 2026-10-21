@@ -135,6 +135,14 @@ const commands = [
     .setDescription('Pasang panel "Gold Donation" (embed + tombol donasi Saweria) di channel ini')
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
   new SlashCommandBuilder()
+    .setName('mantra-community')
+    .setDescription('Pasang panel info Komunitas Mantra Creative (link join komunitas Roblox) di channel ini')
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
+  new SlashCommandBuilder()
+    .setName('mantra-tiktok')
+    .setDescription('Pasang panel info TikTok Mantra Creative (link follow TikTok) di channel ini')
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
+  new SlashCommandBuilder()
     .setName('toko-panel')
     .setDescription('Pasang panel "Store" (dropdown pilih produk) di channel ini')
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
