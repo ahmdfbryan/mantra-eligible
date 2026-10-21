@@ -138,6 +138,7 @@ const {
 const { buildTestimonialEmbed } = require('./store/testimonialPanel');
 const { buildLeaderboardEmbed: buildStoreLeaderboardEmbed } = require('./store/leaderboardPanel');
 const { buildGoldDonationEmbed, buildGoldDonationComponents } = require('./store/goldDonationPanel');
+const { buildCommunityPanel, buildTiktokPanel } = require('./social/socialPanels');
 
 // State sementara (in-memory, bukan persisted) buat alur beli Robux antara
 // modal username -> confirm akun -> pilih jumlah. Hilang kalau bot restart
@@ -1421,6 +1422,37 @@ async function handleGoldDonationCommand(interaction) {
   await interaction.reply({ content: '✅ Panel Gold Donation sudah dipasang di channel ini.', ephemeral: true });
 }
 
+/**
+ * Command /mantra-community -- pasang panel info "Komunitas Mantra
+ * Creative" (link join komunitas Roblox) di channel ini. Pakai Components
+ * V2 (card custom), dikirim sebagai pesan biasa sama kayak panel lain.
+ */
+async function handleMantraCommunityCommand(interaction) {
+  if (!requireManageGuild(interaction)) return;
+
+  const { components, flags } = buildCommunityPanel({
+    guild: interaction.guild,
+    communityName: config.community.name,
+  });
+  await interaction.channel.send({ components, flags });
+  await interaction.reply({ content: '✅ Panel Komunitas sudah dipasang di channel ini.', ephemeral: true });
+}
+
+/**
+ * Command /mantra-tiktok -- pasang panel info "TikTok Mantra Creative"
+ * (link follow akun TikTok) di channel ini. Pakai Components V2 juga.
+ */
+async function handleMantraTiktokCommand(interaction) {
+  if (!requireManageGuild(interaction)) return;
+
+  const { components, flags } = buildTiktokPanel({
+    guild: interaction.guild,
+    communityName: config.community.name,
+  });
+  await interaction.channel.send({ components, flags });
+  await interaction.reply({ content: '✅ Panel TikTok sudah dipasang di channel ini.', ephemeral: true });
+}
+
 // Role gender saling eksklusif -- ambil salah satu otomatis lepas yang lain.
 const GENDER_ROLE_BY_BUTTON = {
   [BTN_GENDER_BOYS]: () => config.genderRoles.boys,
@@ -1694,6 +1726,16 @@ client.on('interactionCreate', async (interaction) => {
 
     if (interaction.commandName === 'gold-donation') {
       await handleGoldDonationCommand(interaction);
+      return;
+    }
+
+    if (interaction.commandName === 'mantra-community') {
+      await handleMantraCommunityCommand(interaction);
+      return;
+    }
+
+    if (interaction.commandName === 'mantra-tiktok') {
+      await handleMantraTiktokCommand(interaction);
       return;
     }
 
