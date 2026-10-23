@@ -12,6 +12,7 @@ const {
 } = require('discord.js');
 const ExcelJS = require('exceljs');
 const { formatTanggalIndo } = require('../ui');
+const { getGuildMembers } = require('../member-cache');
 
 const COLOR_PINK = 0xff2f9c;
 const PAGE_SIZE = 10;
@@ -29,54 +30,18 @@ function decodeCustomId(customId) {
   return { action, page: Number(pageRaw) || 0 };
 }
 
-// Request opcode 8 (Request Guild Members) ke gateway Discord dibatasi
-// cukup ketat, apalagi tipe "ambil semua member tanpa query" kayak di
-// sini -- kalau dipanggil berkali-kali dalam waktu singkat (misal admin
-// coba /member-list berulang), cooldown-nya makin lama tiap kali kena
-// limit. Makanya hasil fetch di-cache per guild beberapa menit, supaya
-// command/tombol yang dipanggil berdekatan nggak nembak ulang ke gateway.
-const GUILD_CACHE_TTL_MS = 5 * 60 * 1000; // 5 menit
-const guildMemberCache = new Map(); // guildId -> { members, fetchedAt }
-
 /**
- * Ambil & urutkan semua member guild (berdasarkan tanggal join, paling
- * lama di atas). Hasilnya di-cache per guild selama GUILD_CACHE_TTL_MS --
- * panggilan berikutnya dalam rentang itu pakai cache, nggak fetch ulang ke
- * gateway. Set `forceRefresh: true` untuk sengaja ambil data paling baru
- * (dipakai command /member-list biar nggak nampilin data basi terus).
+ * Ambil & urutkan member non-bot sebuah guild -- datanya dibaca dari
+ * cache di memori (lihat ../member-cache.js), yang cuma fetch ke Discord
+ * SEKALI (saat prime pertama kali) dan setelahnya ter-update otomatis
+ * lewat event gateway. Jadi fungsi ini TIDAK PERNAH bikin request baru
+ * ke Discord di luar prime pertama itu -- aman dari rate-limit opcode 8.
  */
-async function fetchMemberSnapshot(guild, { forceRefresh = false } = {}) {
-  const cached = guildMemberCache.get(guild.id);
-  if (!forceRefresh && cached && Date.now() - cached.fetchedAt < GUILD_CACHE_TTL_MS) {
-    return cached.members;
-  }
-
-  let members;
-  try {
-    members = await guild.members.fetch();
-  } catch (error) {
-    // Lagi kena rate-limit opcode 8 dari Discord -- daripada gagal total,
-    // mending pakai cache lama (biarpun basi) kalau ada, ketimbang bikin
-    // command/tombolnya error ke user.
-    if (cached) {
-      console.warn('[member-list] Gagal fetch ulang (rate-limit?), pakai cache lama:', error.message);
-      return cached.members;
-    }
-    throw error;
-  }
-
-  const snapshot = members
-    .filter((member) => !member.user.bot)
-    .map((member) => ({
-      id: member.id,
-      tag: member.user.tag,
-      displayName: member.displayName,
-      joinedTimestamp: member.joinedTimestamp,
-    }))
+async function fetchMemberSnapshot(guild) {
+  const entries = await getGuildMembers(guild);
+  return entries
+    .filter((entry) => !entry.bot)
     .sort((a, b) => (a.joinedTimestamp || 0) - (b.joinedTimestamp || 0));
-
-  guildMemberCache.set(guild.id, { members: snapshot, fetchedAt: Date.now() });
-  return snapshot;
 }
 
 function totalPagesFor(members) {
