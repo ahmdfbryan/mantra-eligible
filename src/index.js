@@ -2443,7 +2443,7 @@ client.on('interactionCreate', async (interaction) => {
     }
 
     if (action === MEMBERLIST_BTN_DOWNLOAD) {
-      const file = buildMemberListFile(members, interaction.guild.name);
+      const file = await buildMemberListFile(members, interaction.guild.name);
       await interaction.reply({ files: [file], ephemeral: true });
       return;
     }
