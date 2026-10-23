@@ -148,6 +148,7 @@ const {
   buildMemberListPanel,
   buildMemberListFile,
 } = require('./members/memberListPanel');
+const { initMemberCache, getGuildMembers } = require('./member-cache');
 
 // State sementara (in-memory, bukan persisted) buat alur beli Robux antara
 // modal username -> confirm akun -> pilih jumlah. Hilang kalau bot restart
@@ -156,13 +157,6 @@ const pendingRobuxFlow = new Map();
 function robuxFlowKey(guildId, userId) {
   return `${guildId}:${userId}`;
 }
-
-// Snapshot daftar member (in-memory, bukan persisted) per pesan panel
-// "/member-list" -- diisi sekali waktu panel dibuat, dipakai ulang oleh
-// tombol Prev/Next/Download biar urutan & datanya konsisten selama panel
-// itu masih ada (nggak fetch ulang tiap klik). Hilang kalau bot restart --
-// aman, tombol otomatis fetch ulang on-demand kalau snapshot-nya nggak ada.
-const memberListSnapshots = new Map();
 
 const client = new Client({
   // GuildMembers (privileged) wajib diaktifkan juga di Discord Developer
@@ -177,6 +171,13 @@ const client = new Client({
     GatewayIntentBits.GuildVoiceStates,
   ],
 });
+
+// Pasang listener cache member (join/leave/update nickname-role) sedini
+// mungkin, sebelum login -- biar nggak ada event yang kelewat begitu bot
+// connect. Priming cache pertama kali dilakukan di handler 'clientReady'
+// di bawah (nebeng loop fetch member yang sudah ada buat deteksi boost,
+// supaya nggak ada 2 full-member-fetch terpisah yang jalan barengan).
+initMemberCache(client);
 
 // Debounce per-channel supaya panel sticky tidak spam re-post saat chat ramai.
 const STICKY_DEBOUNCE_MS = 1500;
@@ -199,10 +200,13 @@ client.once('clientReady', async () => {
   // tidak akan memicu event boost sama sekali walau intent sudah aktif.
   // Jadi kita fetch semua member tiap guild sekali saat bot online, supaya
   // cache-nya lengkap dan event boost bisa terdeteksi untuk semua member.
+  // Pakai getGuildMembers() (../member-cache.js) -- fetch sekali ini
+  // SEKALIAN yang nge-prime cache dipakai /member-list dkk, jadi nggak ada
+  // 2 request guild-members penuh yang jalan terpisah.
   for (const guild of client.guilds.cache.values()) {
     try {
-      const members = await guild.members.fetch();
-      console.log(`[boost] Cache ${members.size} member di guild "${guild.name}" untuk deteksi boost.`);
+      const members = await getGuildMembers(guild);
+      console.log(`[boost] Cache ${members.length} member di guild "${guild.name}" untuk deteksi boost.`);
     } catch (error) {
       console.error(`[boost] Gagal fetch member guild "${guild.name}":`, error);
     }
@@ -1471,8 +1475,10 @@ async function handleMantraTiktokCommand(interaction) {
 
 /**
  * Command /member-list -- pasang panel "Daftar Member" (Components V2,
- * paginated 10 member/halaman) di channel ini. Member di-fetch sekali &
- * di-snapshot per pesan, supaya tombol Prev/Next/Download konsisten.
+ * paginated 10 member/halaman) di channel ini. Datanya dibaca dari cache
+ * member di memori (../member-cache.js) -- cuma fetch ke Discord kalau
+ * cache guild ini belum pernah diisi sama sekali; setelah itu live lewat
+ * event gateway, jadi tombol Prev/Next/Download nggak pernah fetch ulang.
  */
 async function handleMemberListCommand(interaction) {
   if (!requireManageGuild(interaction)) return;
@@ -1480,7 +1486,7 @@ async function handleMemberListCommand(interaction) {
 
   let members;
   try {
-    members = await fetchMemberSnapshot(interaction.guild, { forceRefresh: true });
+    members = await fetchMemberSnapshot(interaction.guild);
   } catch (error) {
     console.error('[member-list] Gagal fetch daftar member (kemungkinan rate-limit Discord):', error);
     await interaction.editReply(
@@ -1496,8 +1502,7 @@ async function handleMemberListCommand(interaction) {
     communityName: config.community.name,
   });
 
-  const panelMessage = await interaction.channel.send({ components, flags });
-  memberListSnapshots.set(panelMessage.id, members);
+  await interaction.channel.send({ components, flags });
 
   await interaction.editReply(`✅ Panel Daftar Member sudah dipasang di channel ini (${members.length} member).`);
 }
@@ -2422,24 +2427,23 @@ client.on('interactionCreate', async (interaction) => {
 
   // ==== Tombol Prev/Next/Download di panel "Daftar Member" ====
   // Ditaruh sebelum catch-all `isButton()` di bawah, sama alasannya kayak
-  // blok Store -- biar nggak "ketelan" duluan.
+  // blok Store -- biar nggak "ketelan" duluan. Baca langsung dari cache
+  // member (../member-cache.js) -- cuma fetch ke Discord kalau cache guild
+  // ini ternyata belum pernah di-prime sama sekali (kasus langka, misal
+  // bot baru restart & belum sempat prime).
   if (interaction.isButton() && interaction.customId.startsWith('memberlist_')) {
     const { action, page } = decodeMemberListCustomId(interaction.customId);
 
-    let members = memberListSnapshots.get(interaction.message.id);
-    if (!members) {
-      // Snapshot hilang (kemungkinan bot sempat restart) -- fetch ulang on-demand.
-      try {
-        members = await fetchMemberSnapshot(interaction.guild);
-      } catch (error) {
-        console.error('[member-list] Gagal fetch ulang daftar member (kemungkinan rate-limit Discord):', error);
-        await interaction.reply({
-          content: '❌ Gagal mengambil ulang daftar member dari Discord (kemungkinan lagi rate-limit). Coba lagi beberapa saat, atau pasang ulang panelnya dengan /member-list.',
-          ephemeral: true,
-        });
-        return;
-      }
-      memberListSnapshots.set(interaction.message.id, members);
+    let members;
+    try {
+      members = await fetchMemberSnapshot(interaction.guild);
+    } catch (error) {
+      console.error('[member-list] Gagal ambil daftar member (kemungkinan rate-limit Discord):', error);
+      await interaction.reply({
+        content: '❌ Gagal mengambil daftar member dari Discord (kemungkinan lagi rate-limit). Coba lagi beberapa saat.',
+        ephemeral: true,
+      });
+      return;
     }
 
     if (action === MEMBERLIST_BTN_DOWNLOAD) {
