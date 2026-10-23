@@ -143,6 +143,10 @@ const commands = [
     .setDescription('Pasang panel info TikTok Mantra Creative (link follow TikTok) di channel ini')
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
   new SlashCommandBuilder()
+    .setName('member-list')
+    .setDescription('Pasang panel "Daftar Member" (paginated, bisa download) di channel ini')
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
+  new SlashCommandBuilder()
     .setName('toko-panel')
     .setDescription('Pasang panel "Store" (dropdown pilih produk) di channel ini')
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
