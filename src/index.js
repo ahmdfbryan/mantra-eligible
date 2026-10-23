@@ -139,6 +139,15 @@ const { buildTestimonialEmbed } = require('./store/testimonialPanel');
 const { buildLeaderboardEmbed: buildStoreLeaderboardEmbed } = require('./store/leaderboardPanel');
 const { buildGoldDonationEmbed, buildGoldDonationComponents } = require('./store/goldDonationPanel');
 const { buildCommunityPanel, buildTiktokPanel } = require('./social/socialPanels');
+const {
+  BTN_DOWNLOAD: MEMBERLIST_BTN_DOWNLOAD,
+  decodeCustomId: decodeMemberListCustomId,
+  fetchMemberSnapshot,
+  totalPagesFor: memberListTotalPages,
+  clampPage: clampMemberListPage,
+  buildMemberListPanel,
+  buildMemberListFile,
+} = require('./members/memberListPanel');
 
 // State sementara (in-memory, bukan persisted) buat alur beli Robux antara
 // modal username -> confirm akun -> pilih jumlah. Hilang kalau bot restart
@@ -147,6 +156,13 @@ const pendingRobuxFlow = new Map();
 function robuxFlowKey(guildId, userId) {
   return `${guildId}:${userId}`;
 }
+
+// Snapshot daftar member (in-memory, bukan persisted) per pesan panel
+// "/member-list" -- diisi sekali waktu panel dibuat, dipakai ulang oleh
+// tombol Prev/Next/Download biar urutan & datanya konsisten selama panel
+// itu masih ada (nggak fetch ulang tiap klik). Hilang kalau bot restart --
+// aman, tombol otomatis fetch ulang on-demand kalau snapshot-nya nggak ada.
+const memberListSnapshots = new Map();
 
 const client = new Client({
   // GuildMembers (privileged) wajib diaktifkan juga di Discord Developer
@@ -1453,6 +1469,29 @@ async function handleMantraTiktokCommand(interaction) {
   await interaction.reply({ content: '✅ Panel TikTok sudah dipasang di channel ini.', ephemeral: true });
 }
 
+/**
+ * Command /member-list -- pasang panel "Daftar Member" (Components V2,
+ * paginated 10 member/halaman) di channel ini. Member di-fetch sekali &
+ * di-snapshot per pesan, supaya tombol Prev/Next/Download konsisten.
+ */
+async function handleMemberListCommand(interaction) {
+  if (!requireManageGuild(interaction)) return;
+  await interaction.deferReply({ ephemeral: true });
+
+  const members = await fetchMemberSnapshot(interaction.guild);
+  const { components, flags } = buildMemberListPanel({
+    guild: interaction.guild,
+    members,
+    page: 0,
+    communityName: config.community.name,
+  });
+
+  const panelMessage = await interaction.channel.send({ components, flags });
+  memberListSnapshots.set(panelMessage.id, members);
+
+  await interaction.editReply(`✅ Panel Daftar Member sudah dipasang di channel ini (${members.length} member).`);
+}
+
 // Role gender saling eksklusif -- ambil salah satu otomatis lepas yang lain.
 const GENDER_ROLE_BY_BUTTON = {
   [BTN_GENDER_BOYS]: () => config.genderRoles.boys,
@@ -1736,6 +1775,11 @@ client.on('interactionCreate', async (interaction) => {
 
     if (interaction.commandName === 'mantra-tiktok') {
       await handleMantraTiktokCommand(interaction);
+      return;
+    }
+
+    if (interaction.commandName === 'member-list') {
+      await handleMemberListCommand(interaction);
       return;
     }
 
@@ -2363,6 +2407,39 @@ client.on('interactionCreate', async (interaction) => {
     await refreshMusicPanel(guildId).catch((error) =>
       console.error('[music] Gagal refresh panel musik setelah tombol dipencet:', error)
     );
+    return;
+  }
+
+  // ==== Tombol Prev/Next/Download di panel "Daftar Member" ====
+  // Ditaruh sebelum catch-all `isButton()` di bawah, sama alasannya kayak
+  // blok Store -- biar nggak "ketelan" duluan.
+  if (interaction.isButton() && interaction.customId.startsWith('memberlist_')) {
+    const { action, page } = decodeMemberListCustomId(interaction.customId);
+
+    let members = memberListSnapshots.get(interaction.message.id);
+    if (!members) {
+      // Snapshot hilang (kemungkinan bot sempat restart) -- fetch ulang on-demand.
+      members = await fetchMemberSnapshot(interaction.guild);
+      memberListSnapshots.set(interaction.message.id, members);
+    }
+
+    if (action === MEMBERLIST_BTN_DOWNLOAD) {
+      const file = buildMemberListFile(members, interaction.guild.name);
+      await interaction.reply({ files: [file], ephemeral: true });
+      return;
+    }
+
+    const totalPages = memberListTotalPages(members);
+    const delta = action === 'memberlist_next' ? 1 : -1;
+    const newPage = clampMemberListPage(page + delta, totalPages);
+
+    const { components, flags } = buildMemberListPanel({
+      guild: interaction.guild,
+      members,
+      page: newPage,
+      communityName: config.community.name,
+    });
+    await interaction.update({ components, flags });
     return;
   }
 
