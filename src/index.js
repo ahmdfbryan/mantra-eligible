@@ -1478,7 +1478,17 @@ async function handleMemberListCommand(interaction) {
   if (!requireManageGuild(interaction)) return;
   await interaction.deferReply({ ephemeral: true });
 
-  const members = await fetchMemberSnapshot(interaction.guild);
+  let members;
+  try {
+    members = await fetchMemberSnapshot(interaction.guild);
+  } catch (error) {
+    console.error('[member-list] Gagal fetch daftar member (kemungkinan rate-limit Discord):', error);
+    await interaction.editReply(
+      '❌ Gagal mengambil daftar member dari Discord (kemungkinan lagi rate-limit). Coba lagi beberapa saat.'
+    );
+    return;
+  }
+
   const { components, flags } = buildMemberListPanel({
     guild: interaction.guild,
     members,
@@ -2419,7 +2429,16 @@ client.on('interactionCreate', async (interaction) => {
     let members = memberListSnapshots.get(interaction.message.id);
     if (!members) {
       // Snapshot hilang (kemungkinan bot sempat restart) -- fetch ulang on-demand.
-      members = await fetchMemberSnapshot(interaction.guild);
+      try {
+        members = await fetchMemberSnapshot(interaction.guild);
+      } catch (error) {
+        console.error('[member-list] Gagal fetch ulang daftar member (kemungkinan rate-limit Discord):', error);
+        await interaction.reply({
+          content: '❌ Gagal mengambil ulang daftar member dari Discord (kemungkinan lagi rate-limit). Coba lagi beberapa saat, atau pasang ulang panelnya dengan /member-list.',
+          ephemeral: true,
+        });
+        return;
+      }
       memberListSnapshots.set(interaction.message.id, members);
     }
 
