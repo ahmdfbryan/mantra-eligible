@@ -37,11 +37,11 @@ function decodeCustomId(customId) {
 async function fetchMemberSnapshot(guild) {
   const members = await guild.members.fetch();
   return members
+    .filter((member) => !member.user.bot)
     .map((member) => ({
       id: member.id,
       tag: member.user.tag,
       displayName: member.displayName,
-      bot: member.user.bot,
       joinedTimestamp: member.joinedTimestamp,
     }))
     .sort((a, b) => (a.joinedTimestamp || 0) - (b.joinedTimestamp || 0));
@@ -75,22 +75,30 @@ function buildMemberListPanel({ guild, members, page, communityName }) {
           .map((member, index) => {
             const number = start + index + 1;
             const joined = member.joinedTimestamp ? formatTanggalIndo(new Date(member.joinedTimestamp)) : 'Tidak diketahui';
-            const botTag = member.bot ? ' `BOT`' : '';
-            return `**${number}.** ${member.displayName} (\`${member.tag}\`)${botTag}\n　└ Bergabung: ${joined}`;
+            return `**${number}.** ${member.displayName} (\`${member.tag}\`)\n　└ Bergabung: ${joined}`;
           })
           .join('\n')
       : 'Belum ada member di halaman ini.';
 
   const container = new ContainerBuilder().setAccentColor(COLOR_PINK);
 
-  const headerSection = new SectionBuilder().addTextDisplayComponents(
-    new TextDisplayBuilder().setContent(`## 👥 Daftar Member ${name}`),
-    new TextDisplayBuilder().setContent(`Total Member: **${members.length.toLocaleString('id-ID')}**`)
-  );
+  // SectionBuilder WAJIB punya accessory (thumbnail/button) -- kalau guild
+  // kebetulan nggak punya icon, jangan pakai Section sama sekali (fallback
+  // ke TextDisplay polos) daripada bikin pesan ini gagal terkirim.
   if (iconURL) {
-    headerSection.setThumbnailAccessory((thumbnail) => thumbnail.setURL(iconURL).setDescription(name));
+    const headerSection = new SectionBuilder()
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(`## 👥 Daftar Member ${name}`),
+        new TextDisplayBuilder().setContent(`Total Member: **${members.length.toLocaleString('id-ID')}**`)
+      )
+      .setThumbnailAccessory((thumbnail) => thumbnail.setURL(iconURL).setDescription(name));
+    container.addSectionComponents(headerSection);
+  } else {
+    container.addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(`## 👥 Daftar Member ${name}`),
+      new TextDisplayBuilder().setContent(`Total Member: **${members.length.toLocaleString('id-ID')}**`)
+    );
   }
-  container.addSectionComponents(headerSection);
 
   container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small));
   container.addTextDisplayComponents(new TextDisplayBuilder().setContent(listText));
@@ -132,8 +140,7 @@ function buildMemberListFile(members, guildName) {
   const header = `Daftar Member ${guildName || 'Server'} -- Total: ${members.length}\nDiexport pada: ${formatTanggalIndo(new Date())}\n${'='.repeat(60)}\n\n`;
   const lines = members.map((member, index) => {
     const joined = member.joinedTimestamp ? formatTanggalIndo(new Date(member.joinedTimestamp)) : 'Tidak diketahui';
-    const botTag = member.bot ? ' [BOT]' : '';
-    return `${index + 1}. ${member.displayName} (${member.tag}) [ID: ${member.id}]${botTag} -- Bergabung: ${joined}`;
+    return `${index + 1}. ${member.displayName} (${member.tag}) [ID: ${member.id}] -- Bergabung: ${joined}`;
   });
 
   const content = header + lines.join('\n') + '\n';
