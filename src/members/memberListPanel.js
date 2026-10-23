@@ -28,15 +28,43 @@ function decodeCustomId(customId) {
   return { action, page: Number(pageRaw) || 0 };
 }
 
+// Request opcode 8 (Request Guild Members) ke gateway Discord dibatasi
+// cukup ketat, apalagi tipe "ambil semua member tanpa query" kayak di
+// sini -- kalau dipanggil berkali-kali dalam waktu singkat (misal admin
+// coba /member-list berulang), cooldown-nya makin lama tiap kali kena
+// limit. Makanya hasil fetch di-cache per guild beberapa menit, supaya
+// command/tombol yang dipanggil berdekatan nggak nembak ulang ke gateway.
+const GUILD_CACHE_TTL_MS = 5 * 60 * 1000; // 5 menit
+const guildMemberCache = new Map(); // guildId -> { members, fetchedAt }
+
 /**
  * Ambil & urutkan semua member guild (berdasarkan tanggal join, paling
- * lama di atas) -- dipanggil sekali waktu command /member-list dijalankan,
- * hasilnya di-"snapshot" supaya tombol Next/Prev/Download berikutnya nggak
- * perlu fetch ulang & urutannya konsisten selama panel itu masih ada.
+ * lama di atas). Hasilnya di-cache per guild selama GUILD_CACHE_TTL_MS --
+ * panggilan berikutnya dalam rentang itu pakai cache, nggak fetch ulang ke
+ * gateway. Set `forceRefresh: true` untuk sengaja ambil data paling baru
+ * (dipakai command /member-list biar nggak nampilin data basi terus).
  */
-async function fetchMemberSnapshot(guild) {
-  const members = await guild.members.fetch();
-  return members
+async function fetchMemberSnapshot(guild, { forceRefresh = false } = {}) {
+  const cached = guildMemberCache.get(guild.id);
+  if (!forceRefresh && cached && Date.now() - cached.fetchedAt < GUILD_CACHE_TTL_MS) {
+    return cached.members;
+  }
+
+  let members;
+  try {
+    members = await guild.members.fetch();
+  } catch (error) {
+    // Lagi kena rate-limit opcode 8 dari Discord -- daripada gagal total,
+    // mending pakai cache lama (biarpun basi) kalau ada, ketimbang bikin
+    // command/tombolnya error ke user.
+    if (cached) {
+      console.warn('[member-list] Gagal fetch ulang (rate-limit?), pakai cache lama:', error.message);
+      return cached.members;
+    }
+    throw error;
+  }
+
+  const snapshot = members
     .filter((member) => !member.user.bot)
     .map((member) => ({
       id: member.id,
@@ -45,6 +73,9 @@ async function fetchMemberSnapshot(guild) {
       joinedTimestamp: member.joinedTimestamp,
     }))
     .sort((a, b) => (a.joinedTimestamp || 0) - (b.joinedTimestamp || 0));
+
+  guildMemberCache.set(guild.id, { members: snapshot, fetchedAt: Date.now() });
+  return snapshot;
 }
 
 function totalPagesFor(members) {
