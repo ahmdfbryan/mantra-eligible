@@ -10,6 +10,7 @@ const {
   MessageFlags,
   AttachmentBuilder,
 } = require('discord.js');
+const ExcelJS = require('exceljs');
 const { formatTanggalIndo } = require('../ui');
 
 const COLOR_PINK = 0xff2f9c;
@@ -164,19 +165,54 @@ function buildMemberListPanel({ guild, members, page, communityName }) {
 }
 
 /**
- * Bikin file .txt berisi daftar LENGKAP member (bukan cuma 1 halaman) --
- * dikirim ephemeral ke orang yang klik tombol Download.
+ * Bikin file Excel (.xlsx) berisi daftar LENGKAP member (bukan cuma 1
+ * halaman) -- dikirim ephemeral ke orang yang klik tombol Download.
  */
-function buildMemberListFile(members, guildName) {
-  const header = `Daftar Member ${guildName || 'Server'} -- Total: ${members.length}\nDiexport pada: ${formatTanggalIndo(new Date())}\n${'='.repeat(60)}\n\n`;
-  const lines = members.map((member, index) => {
+async function buildMemberListFile(members, guildName) {
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = guildName || 'Mantra Creative Bot';
+  workbook.created = new Date();
+
+  const sheet = workbook.addWorksheet('Daftar Member');
+  sheet.columns = [
+    { header: 'No', key: 'no', width: 6 },
+    { header: 'Nama Tampilan', key: 'displayName', width: 28 },
+    { header: 'Username', key: 'tag', width: 24 },
+    { header: 'User ID', key: 'id', width: 22 },
+    { header: 'Tanggal Bergabung', key: 'joined', width: 24 },
+  ];
+
+  // Header row -- bold putih di atas warna pink senada branding Mantra Creative.
+  const headerRow = sheet.getRow(1);
+  headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+  headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFF2F9C' } };
+  headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
+  headerRow.height = 20;
+
+  members.forEach((member, index) => {
     const joined = member.joinedTimestamp ? formatTanggalIndo(new Date(member.joinedTimestamp)) : 'Tidak diketahui';
-    return `${index + 1}. ${member.displayName} (${member.tag}) [ID: ${member.id}] -- Bergabung: ${joined}`;
+    sheet.addRow({
+      no: index + 1,
+      displayName: member.displayName,
+      tag: member.tag,
+      id: member.id,
+      joined,
+    });
   });
 
-  const content = header + lines.join('\n') + '\n';
+  // Selang-seling warna baris biar enak dibaca (striped rows).
+  for (let rowNumber = 2; rowNumber <= members.length + 1; rowNumber += 1) {
+    if (rowNumber % 2 === 0) {
+      sheet.getRow(rowNumber).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFDF0F8' } };
+    }
+  }
+
+  sheet.getColumn('no').alignment = { horizontal: 'center' };
+  sheet.views = [{ state: 'frozen', ySplit: 1 }];
+
+  const buffer = await workbook.xlsx.writeBuffer();
   const safeName = (guildName || 'server').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-  return new AttachmentBuilder(Buffer.from(content, 'utf8'), { name: `daftar-member-${safeName || 'server'}.txt` });
+  return new AttachmentBuilder(Buffer.from(buffer), { name: `daftar-member-${safeName || 'server'}.xlsx` });
 }
 
 module.exports = {
