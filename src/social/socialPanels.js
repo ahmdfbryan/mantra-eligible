@@ -30,18 +30,29 @@ function buildCommunityPanel({ guild, communityName } = {}) {
 
   const container = new ContainerBuilder().setAccentColor(COLOR_PINK);
 
-  const headerSection = new SectionBuilder()
-    .addTextDisplayComponents(
+  // SectionBuilder WAJIB punya accessory (thumbnail/button) -- kalau guild
+  // kebetulan nggak punya icon, jangan pakai Section sama sekali (fallback
+  // ke TextDisplay polos) daripada bikin pesan ini gagal terkirim.
+  if (iconURL) {
+    const headerSection = new SectionBuilder()
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent('## 🌐 Komunitas Mantra Creative'),
+        new TextDisplayBuilder().setContent(
+          `Gabung ke komunitas Roblox resmi **${name}** buat ikutan event, main bareng member lain, ` +
+            'dan dapetin update terbaru langsung dari developer.'
+        )
+      )
+      .setThumbnailAccessory((thumbnail) => thumbnail.setURL(iconURL).setDescription(name));
+    container.addSectionComponents(headerSection);
+  } else {
+    container.addTextDisplayComponents(
       new TextDisplayBuilder().setContent('## 🌐 Komunitas Mantra Creative'),
       new TextDisplayBuilder().setContent(
         `Gabung ke komunitas Roblox resmi **${name}** buat ikutan event, main bareng member lain, ` +
           'dan dapetin update terbaru langsung dari developer.'
       )
     );
-  if (iconURL) {
-    headerSection.setThumbnailAccessory((thumbnail) => thumbnail.setURL(iconURL).setDescription(name));
   }
-  container.addSectionComponents(headerSection);
 
   container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small));
 
@@ -77,18 +88,29 @@ function buildTiktokPanel({ guild, communityName } = {}) {
 
   const container = new ContainerBuilder().setAccentColor(COLOR_PINK);
 
-  const headerSection = new SectionBuilder()
-    .addTextDisplayComponents(
+  // SectionBuilder WAJIB punya accessory (thumbnail/button) -- kalau guild
+  // kebetulan nggak punya icon, jangan pakai Section sama sekali (fallback
+  // ke TextDisplay polos) daripada bikin pesan ini gagal terkirim.
+  if (iconURL) {
+    const headerSection = new SectionBuilder()
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent('## 🎵 TikTok Mantra Creative'),
+        new TextDisplayBuilder().setContent(
+          `Follow TikTok resmi **${name}** buat nonton konten seru, behind the scene, ` +
+            'dan info terbaru seputar komunitas kami.'
+        )
+      )
+      .setThumbnailAccessory((thumbnail) => thumbnail.setURL(iconURL).setDescription(name));
+    container.addSectionComponents(headerSection);
+  } else {
+    container.addTextDisplayComponents(
       new TextDisplayBuilder().setContent('## 🎵 TikTok Mantra Creative'),
       new TextDisplayBuilder().setContent(
         `Follow TikTok resmi **${name}** buat nonton konten seru, behind the scene, ` +
           'dan info terbaru seputar komunitas kami.'
       )
     );
-  if (iconURL) {
-    headerSection.setThumbnailAccessory((thumbnail) => thumbnail.setURL(iconURL).setDescription(name));
   }
-  container.addSectionComponents(headerSection);
 
   container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small));
 
