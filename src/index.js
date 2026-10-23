@@ -1480,7 +1480,7 @@ async function handleMemberListCommand(interaction) {
 
   let members;
   try {
-    members = await fetchMemberSnapshot(interaction.guild);
+    members = await fetchMemberSnapshot(interaction.guild, { forceRefresh: true });
   } catch (error) {
     console.error('[member-list] Gagal fetch daftar member (kemungkinan rate-limit Discord):', error);
     await interaction.editReply(
