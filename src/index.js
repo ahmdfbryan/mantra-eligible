@@ -67,8 +67,8 @@ const {
   buildCheckinPanelComponents,
   formatRemaining,
 } = require('./idcard/checkinPanel');
-const { renderWelcomeCard } = require('./welcome/welcomeCard');
-const { buildWelcomeEmbed, buildWelcomeComponents } = require('./welcome/welcomePanel');
+const { renderWelcomeCard, renderGoodbyeCard } = require('./welcome/welcomeCard');
+const { buildWelcomeEmbed, buildGoodbyeEmbed, buildWelcomeComponents } = require('./welcome/welcomePanel');
 const {
   BTN_GENDER_BOYS,
   BTN_GENDER_GIRLS,
@@ -1366,6 +1366,48 @@ async function sendWelcomeCard(member, { channelId } = {}) {
 }
 
 /**
+ * Kirim kartu + embed "Goodbye" ke channel welcome, tiap ada member yang
+ * KELUAR server (lihat event guildMemberRemove). Dikirim ke channel yang
+ * sama dengan welcome card (WELCOME_CHANNEL_ID) -- non-fatal di setiap
+ * langkah, kalau channel belum di-set atau gagal kirim, cukup di-log tanpa
+ * bikin bot crash.
+ * @returns {Promise<{ ok: boolean, reason?: string }>}
+ */
+async function sendGoodbyeCard(member) {
+  const targetChannelId = config.welcomeChannelId;
+  if (!targetChannelId) {
+    return { ok: false, reason: 'WELCOME_CHANNEL_ID belum diisi di .env' };
+  }
+
+  const channel = await member.guild.channels.fetch(targetChannelId).catch(() => null);
+  if (!channel) {
+    return { ok: false, reason: `Channel welcome (${targetChannelId}) tidak ditemukan` };
+  }
+
+  const memberCount = member.guild.memberCount;
+  const attachmentName = `goodbye-${member.id}.png`;
+
+  const buffer = await renderGoodbyeCard({
+    avatarUrl: member.user?.displayAvatarURL({ extension: 'png', size: 256 }),
+    displayName: member.displayName,
+    username: member.user?.username,
+    memberCount,
+    // member yang kena event guildMemberRemove bisa "partial" (data gak
+    // lengkap) kalau dia belum ke-cache sebelumnya -- joinedTimestamp bisa
+    // null di kasus itu, renderGoodbyeCard/formatDuration sudah handle (jadi "-").
+    joinedAt: member.joinedAt || null,
+    communityName: config.community.name,
+  });
+
+  const attachment = new AttachmentBuilder(buffer, { name: attachmentName });
+  const embed = buildGoodbyeEmbed({ member, communityName: config.community.name, memberCount });
+
+  await channel.send({ embeds: [embed], files: [attachment] });
+
+  return { ok: true };
+}
+
+/**
  * Command /testwelcome -- buat tester/admin, simulasiin kartu + embed
  * welcome TANPA perlu ada member beneran join/leave/join ulang. Butuh
  * permission Manage Server (sudah dibatasi di deploy-commands.js).
@@ -1573,6 +1615,16 @@ client.on('guildMemberAdd', async (member) => {
   });
   if (!result.ok) {
     console.warn('[welcome] Welcome tidak terkirim:', result.reason);
+  }
+});
+
+client.on('guildMemberRemove', async (member) => {
+  const result = await sendGoodbyeCard(member).catch((error) => {
+    console.error('[welcome] Gagal kirim goodbye card:', error);
+    return { ok: false, reason: error.message };
+  });
+  if (!result.ok) {
+    console.warn('[welcome] Goodbye tidak terkirim:', result.reason);
   }
 });
 
