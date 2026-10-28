@@ -279,4 +279,193 @@ async function renderWelcomeCard({ avatarUrl, displayName, username, memberNumbe
   return canvas.encode('png');
 }
 
-module.exports = { renderWelcomeCard };
+/**
+ * Format durasi dari `fromDate` sampai `toDate` jadi teks singkat Indonesia,
+ * contoh "3 bulan 12 hari" atau "15 hari" atau "Hari ini".
+ */
+function formatDuration(fromDate, toDate) {
+  if (!fromDate) return '-';
+  const from = fromDate instanceof Date ? fromDate : new Date(fromDate);
+  const to = toDate instanceof Date ? toDate : new Date(toDate);
+  if (Number.isNaN(from.getTime())) return '-';
+
+  let totalDays = Math.floor((to.getTime() - from.getTime()) / 86400000);
+  if (totalDays <= 0) return 'Hari ini';
+
+  const years = Math.floor(totalDays / 365);
+  totalDays -= years * 365;
+  const months = Math.floor(totalDays / 30);
+  totalDays -= months * 30;
+  const days = totalDays;
+
+  const parts = [];
+  if (years > 0) parts.push(`${years} tahun`);
+  if (months > 0) parts.push(`${months} bulan`);
+  if (days > 0 || parts.length === 0) parts.push(`${days} hari`);
+
+  return parts.slice(0, 2).join(' ');
+}
+
+/**
+ * Render kartu "Goodbye" buat member yang keluar server -- layout sama
+ * kayak renderWelcomeCard (logo, avatar tengah, 3 kotak statistik), cuma
+ * teks besar & warna aksennya dibuat lebih "pudar/netral" (bukan pink-putih
+ * ngejreng kayak welcome) biar kesannya beda, tapi tetap senada branding.
+ * @returns {Promise<Buffer>} PNG buffer
+ */
+async function renderGoodbyeCard({ avatarUrl, displayName, username, memberCount, joinedAt, communityName }) {
+  const canvas = createCanvas(WIDTH, HEIGHT);
+  const ctx = canvas.getContext('2d');
+
+  // ---- Background (sama kayak welcome, lebih gelap/muram) ----
+  const bgGradient = ctx.createLinearGradient(0, 0, WIDTH, HEIGHT);
+  bgGradient.addColorStop(0, COLORS.bgTop);
+  bgGradient.addColorStop(1, COLORS.bgBottom);
+  ctx.fillStyle = bgGradient;
+  ctx.fillRect(0, 0, WIDTH, HEIGHT);
+
+  const blob1 = ctx.createRadialGradient(WIDTH / 2, 40, 10, WIDTH / 2, 40, 320);
+  blob1.addColorStop(0, 'rgba(120, 120, 130, 0.14)');
+  blob1.addColorStop(1, 'rgba(120, 120, 130, 0)');
+  ctx.fillStyle = blob1;
+  ctx.fillRect(0, 0, WIDTH, HEIGHT);
+
+  const blob2 = ctx.createRadialGradient(WIDTH / 2, HEIGHT, 10, WIDTH / 2, HEIGHT, 300);
+  blob2.addColorStop(0, 'rgba(255, 47, 156, 0.08)');
+  blob2.addColorStop(1, 'rgba(255, 47, 156, 0)');
+  ctx.fillStyle = blob2;
+  ctx.fillRect(0, 0, WIDTH, HEIGHT);
+
+  drawBokeh(ctx, WIDTH, HEIGHT);
+
+  // ---- Panel utama ----
+  const panelX = 28;
+  const panelY = 28;
+  const panelW = WIDTH - 56;
+  const panelH = HEIGHT - 56;
+  roundRectPath(ctx, panelX, panelY, panelW, panelH, 30);
+  ctx.fillStyle = COLORS.panelFill;
+  ctx.fill();
+  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = 'rgba(216, 201, 210, 0.35)';
+  ctx.stroke();
+
+  ctx.save();
+  roundRectPath(ctx, panelX, panelY, panelW, panelH, 30);
+  ctx.clip();
+  const stripGradient = ctx.createLinearGradient(panelX, panelY, panelX + 320, panelY + 6);
+  stripGradient.addColorStop(0, COLORS.grayDim);
+  stripGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+  ctx.fillStyle = stripGradient;
+  ctx.fillRect(panelX, panelY, panelW, 6);
+  ctx.restore();
+
+  // ---- Header: logo + nama komunitas (kiri atas) ----
+  const headerY = panelY + 34;
+  const logoImg = await getLogoImage();
+  let headerTextX = panelX + 36;
+  if (logoImg) {
+    const size = 44;
+    const gx = panelX + 36;
+    const gy = headerY - 8;
+    ctx.save();
+    roundRectPath(ctx, gx, gy, size, size, 10);
+    ctx.clip();
+    ctx.drawImage(logoImg, gx, gy, size, size);
+    ctx.restore();
+    headerTextX = gx + size + 16;
+  }
+
+  ctx.fillStyle = COLORS.white;
+  ctx.font = 'bold 22px sans-serif';
+  ctx.fillText((communityName || 'MANTRA CREATIVE').toUpperCase(), headerTextX, headerY + 14);
+  ctx.fillStyle = COLORS.gray;
+  ctx.font = '600 13px sans-serif';
+  ctx.fillText('M E M B E R   L E A V E', headerTextX, headerY + 32);
+
+  // ---- Teks besar "GOODBYE" (tengah, di bawah header) -- pudar/netral ----
+  ctx.textAlign = 'center';
+  ctx.font = 'italic bold 56px sans-serif';
+  const goodbyeText = 'GOODBYE';
+  const goodbyeGradient = ctx.createLinearGradient(WIDTH / 2 - 180, 0, WIDTH / 2 + 180, 0);
+  goodbyeGradient.addColorStop(0, COLORS.grayDimmer);
+  goodbyeGradient.addColorStop(0.55, COLORS.gray);
+  goodbyeGradient.addColorStop(1, COLORS.gray);
+  ctx.save();
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.55)';
+  ctx.shadowBlur = 18;
+  ctx.fillStyle = goodbyeGradient;
+  ctx.fillText(goodbyeText, WIDTH / 2, headerY + 112);
+  ctx.restore();
+  ctx.textAlign = 'left';
+
+  // ---- Avatar member (tengah, desaturated-feel lewat border abu) ----
+  const avatarSize = 160;
+  const avatarX = WIDTH / 2 - avatarSize / 2;
+  const avatarY = headerY + 140;
+
+  const avatarImg = await safeLoadImage(avatarUrl);
+  ctx.save();
+  roundRectPath(ctx, avatarX, avatarY, avatarSize, avatarSize, avatarSize / 2);
+  ctx.clip();
+  if (avatarImg) {
+    ctx.drawImage(avatarImg, avatarX, avatarY, avatarSize, avatarSize);
+  } else {
+    ctx.fillStyle = '#1c1c1e';
+    ctx.fillRect(avatarX, avatarY, avatarSize, avatarSize);
+  }
+  ctx.restore();
+
+  ctx.save();
+  ctx.shadowColor = 'rgba(216, 201, 210, 0.7)';
+  ctx.shadowBlur = 16;
+  roundRectPath(ctx, avatarX, avatarY, avatarSize, avatarSize, avatarSize / 2);
+  ctx.strokeStyle = COLORS.grayDim;
+  ctx.lineWidth = 4;
+  ctx.stroke();
+  ctx.restore();
+
+  // ---- Nama member (di bawah avatar) ----
+  ctx.textAlign = 'center';
+  ctx.fillStyle = COLORS.white;
+  ctx.font = 'bold 30px sans-serif';
+  let nameText = displayName || username || '-';
+  const nameMaxWidth = panelW - 120;
+  if (ctx.measureText(nameText).width > nameMaxWidth) {
+    while (nameText.length > 3 && ctx.measureText(nameText + '…').width > nameMaxWidth) {
+      nameText = nameText.slice(0, -1);
+    }
+    nameText += '…';
+  }
+  const nameY = avatarY + avatarSize + 44;
+  ctx.fillText(nameText, WIDTH / 2, nameY);
+  ctx.textAlign = 'left';
+
+  // ---- Baris statistik (bawah): lama bergabung, bergabung sejak, sisa member ----
+  const statTop = nameY + 36;
+  const statH = 76;
+  const gridLeft = panelX + 56;
+  const gridRight = panelX + panelW - 56;
+  const gridW = gridRight - gridLeft;
+  const colGap = 16;
+  const colW = (gridW - colGap * 2) / 3;
+
+  drawStatBox(ctx, gridLeft, statTop, colW, statH, 'Lama Bergabung', formatDuration(joinedAt, new Date()));
+  drawStatBox(ctx, gridLeft + colW + colGap, statTop, colW, statH, 'Bergabung Sejak', formatDate(joinedAt));
+  drawStatBox(ctx, gridLeft + (colW + colGap) * 2, statTop, colW, statH, 'Sisa Member', `${memberCount}`);
+
+  // ---- Teks penutup, di bawah baris statistik ----
+  ctx.textAlign = 'center';
+  ctx.fillStyle = COLORS.gray;
+  ctx.font = 'bold 15px sans-serif';
+  ctx.fillText(
+    `T E L A H   M E N I N G G A L K A N   ${(communityName || 'MANTRA CREATIVE').toUpperCase().split('').join(' ')}`,
+    WIDTH / 2,
+    statTop + statH + 38
+  );
+  ctx.textAlign = 'left';
+
+  return canvas.encode('png');
+}
+
+module.exports = { renderWelcomeCard, renderGoodbyeCard };
