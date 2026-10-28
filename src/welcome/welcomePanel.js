@@ -22,6 +22,20 @@ function buildWelcomeEmbed({ member, communityName, memberNumber }) {
 }
 
 /**
+ * Embed keterangan goodbye -- gambar goodbye card dikirim terpisah sebagai
+ * attachment (sama pola kayak buildWelcomeEmbed). Tidak ada tombol Rules/
+ * Take Role di sini (sudah gak relevan buat member yang keluar).
+ */
+function buildGoodbyeEmbed({ member, communityName, memberCount }) {
+  const name = communityName || 'MANTRA CREATIVE';
+  const tag = member.user?.tag || member.displayName || 'Seseorang';
+  return new EmbedBuilder()
+    .setColor(0x6c6c74)
+    .setTitle(`Sampai jumpa, ${member.displayName || tag} 👋`)
+    .setDescription(`**${tag}** baru saja keluar dari ${name}. Sisa member sekarang: **${memberCount}**.`);
+}
+
+/**
  * Tombol link ke channel Rules & channel Take Role (bukan tombol aksi --
  * cuma loncat ke channel yang dimaksud, jadi tidak butuh interaction handler).
  */
@@ -49,4 +63,4 @@ function buildWelcomeComponents({ guildId, rulesChannelId, takeRoleChannelId }) 
   return row;
 }
 
-module.exports = { buildWelcomeEmbed, buildWelcomeComponents };
+module.exports = { buildWelcomeEmbed, buildGoodbyeEmbed, buildWelcomeComponents };
