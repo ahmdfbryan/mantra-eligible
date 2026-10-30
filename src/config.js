@@ -105,7 +105,10 @@ module.exports = {
     ticketCategoryPrefix: process.env.STORE_TICKET_CATEGORY_PREFIX || '🎫 Tickets',
     // Rate harga Robux per 100 Robux (linear -- 200 Robux = 2x rate, dst).
     robuxRatePer100: Number(process.env.STORE_ROBUX_RATE_PER_100 || 12000),
-    robuxOptions: [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000],
+    robuxOptions: [
+      100, 200, 300, 400, 500, 600, 700, 800, 900, 1000,
+      1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000,
+    ],
     // Emoji custom server buat ikon Robux (ganti emoji unicode 💎).
     robuxEmoji: {
       id: process.env.EMOJI_ROBUX_ID || '1559070786088730735',
