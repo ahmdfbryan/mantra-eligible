@@ -449,6 +449,17 @@ async function handleUnpanelCommand(interaction) {
   await interaction.editReply('✅ Panel "Cek Status Akun" sudah dilepas dari channel ini.');
 }
 
+/**
+ * Opsi jumlah Robux yang masih muat di sisa stock hari ini. Opsi dropdown
+ * Discord tidak bisa di-disable satu-satu, jadi yang melebihi sisa stock
+ * disembunyikan. Stock belum di-set (unlimited) -> semua opsi tampil.
+ */
+function robuxOptionsForStock() {
+  const stock = stockStore.getStock();
+  if (stock.total === null || stock.remaining === null) return config.store.robuxOptions;
+  return config.store.robuxOptions.filter((amount) => amount <= stock.remaining);
+}
+
 function requireManageGuild(interaction) {
   if (interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)) return true;
   interaction.reply({
@@ -1937,8 +1948,8 @@ client.on('interactionCreate', async (interaction) => {
             : '🔴 Stock Robux hari ini sudah habis. Silakan coba lagi besok atau tunggu stock di-update.',
         embeds: [buildRobuxAmountEmbed(pending)],
         components:
-          stock.remaining > 0
-            ? buildRobuxAmountComponents(config.store.robuxOptions, config.store.robuxRatePer100)
+          robuxOptionsForStock().length > 0
+            ? buildRobuxAmountComponents(robuxOptionsForStock(), config.store.robuxRatePer100)
             : [],
       });
       return;
@@ -2233,9 +2244,19 @@ client.on('interactionCreate', async (interaction) => {
       return;
     }
 
+    const availableOptions = robuxOptionsForStock();
+    if (availableOptions.length === 0) {
+      await interaction.update({
+        content: '🔴 Stock Robux hari ini sudah habis. Silakan coba lagi besok atau tunggu stock di-update.',
+        embeds: [],
+        components: [],
+      });
+      return;
+    }
+
     await interaction.update({
       embeds: [buildRobuxAmountEmbed(pending)],
-      components: buildRobuxAmountComponents(config.store.robuxOptions, config.store.robuxRatePer100),
+      components: buildRobuxAmountComponents(availableOptions, config.store.robuxRatePer100),
     });
     return;
   }
