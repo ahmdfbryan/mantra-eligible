@@ -868,6 +868,7 @@ async function refreshStorePanel(client) {
     communityName: config.community.name,
     open: panel.open,
     closedReason: panel.closedReason || null,
+    closedProducts: panel.closedProducts || [],
     attachmentName,
   });
   const files = [new AttachmentBuilder(STORE_GIF_PATH, { name: attachmentName })];
@@ -912,6 +913,7 @@ async function handleTokoPanelCommand(interaction) {
     communityName: config.community.name,
     open,
     closedReason: existing?.closedReason || null,
+    closedProducts: existing?.closedProducts || [],
     attachmentName,
   });
   const panelMessage = await interaction.channel.send({
@@ -925,24 +927,62 @@ async function handleTokoPanelCommand(interaction) {
     messageId: panelMessage.id,
     open,
     closedReason: existing?.closedReason || null,
+    closedProducts: existing?.closedProducts || [],
   });
   await interaction.editReply('✅ Panel Store dipasang & live di channel ini.');
 }
 
+const STORE_PRODUCT_NAMES = { robux: 'Robux', skinrod: 'Paket Skin Rod', royalpet: 'Royal Pet' };
+
+/**
+ * /toko-buka [produk] -- tanpa pilihan produk (atau "Semua") = buka toko
+ * keseluruhan + semua produk yang ditutup satuan. Dengan produk tertentu =
+ * buka produk itu saja.
+ */
 async function handleTokoBukaCommand(interaction) {
   if (!requireManageGuild(interaction)) return;
   await interaction.deferReply({ ephemeral: true });
+
+  const product = interaction.options.getString('produk');
+  if (product && product !== 'all') {
+    storePanelStore.setProductOpen(product, true);
+    await refreshStorePanel(interaction.client);
+    const panel = storePanelStore.getStorePanel();
+    const stillClosed = panel && panel.open === false && (product === 'robux' || panel.closedReason !== 'stock');
+    await interaction.editReply(
+      `🟢 **${STORE_PRODUCT_NAMES[product]}** dibuka kembali.` +
+        (stillClosed ? ' (Catatan: toko keseluruhan masih tutup -- jalankan `/toko-buka` tanpa pilihan produk.)' : '')
+    );
+    return;
+  }
+
   storePanelStore.setStoreOpen(true);
+  storePanelStore.clearClosedProducts();
   await refreshStorePanel(interaction.client);
   await interaction.editReply('🟢 Toko dibuka -- member sekarang bisa pilih produk di panel Store.');
 }
 
+/**
+ * /toko-tutup [produk] -- tanpa pilihan produk (atau "Semua") = tutup semua
+ * produk. Dengan produk tertentu = tutup produk itu saja, yang lain tetap buka.
+ */
 async function handleTokoTutupCommand(interaction) {
   if (!requireManageGuild(interaction)) return;
   await interaction.deferReply({ ephemeral: true });
+
+  const product = interaction.options.getString('produk');
+  if (product && product !== 'all') {
+    storePanelStore.setProductOpen(product, false);
+    await refreshStorePanel(interaction.client);
+    await interaction.editReply(
+      `🔴 **${STORE_PRODUCT_NAMES[product]}** ditutup -- tombolnya di panel Store terkunci, produk lain tetap buka.`
+    );
+    return;
+  }
+
   storePanelStore.setStoreOpen(false, 'manual');
   await refreshStorePanel(interaction.client);
-  await interaction.editReply('🔴 Toko ditutup -- dropdown produk di panel Store otomatis terkunci.');
+  await interaction.editReply('🔴 Toko ditutup -- semua produk di panel Store otomatis terkunci.');
 }
 
 /**
@@ -958,6 +998,8 @@ async function handleTokoStockCommand(interaction) {
   const jumlah = interaction.options.getInteger('jumlah');
   stockStore.setStock(jumlah, interaction.user.id);
   storePanelStore.setStoreOpen(true);
+  // Admin set stock baru = mau jualan Robux lagi -> buka juga kalau Robux sempat ditutup satuan.
+  storePanelStore.setProductOpen('robux', true);
   await refreshStorePanel(interaction.client);
 
   const announceChannel = await interaction.client.channels
@@ -1989,6 +2031,13 @@ client.on('interactionCreate', async (interaction) => {
       panel && panel.open === false && (product === 'robux' || panel.closedReason !== 'stock');
     if (closedForThisProduct) {
       await interaction.reply({ content: '🔴 Toko sedang tutup, coba lagi nanti ya.', ephemeral: true });
+      return;
+    }
+    if (panel?.closedProducts?.includes(product)) {
+      await interaction.reply({
+        content: `🔴 **${STORE_PRODUCT_NAMES[product]}** sedang ditutup sementara, coba lagi nanti ya.`,
+        ephemeral: true,
+      });
       return;
     }
 
