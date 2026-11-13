@@ -69,9 +69,9 @@ function buildStoreStatsText() {
   const completedCount = ticketStore.getCompletedCount();
   const { average, count: ratingCount } = ticketStore.getAverageRating();
 
-  const ratingText = ratingCount > 0 ? `⭐ ${average.toFixed(1)}/5 (${ratingCount} testimoni)` : 'Belum ada rating';
+  const ratingText = ratingCount > 0 ? `${average.toFixed(1)}/5 (${ratingCount} testimoni)` : 'Belum ada rating';
 
-  return `🧾 **Total Transaksi** : ${completedCount}\n⭐ **Rating Toko** : ${ratingText}`;
+  return `🧾 **Total Transaksi** : \`${completedCount} transaksi\`\n⭐ **Rating Toko** : \`${ratingText}\``;
 }
 
 /**
