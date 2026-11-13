@@ -88,12 +88,22 @@ function buildStoreStatsText() {
  * Return { components, flags } -- flags WAJIB IsComponentsV2 saat
  * dikirim/di-edit. Banner dikirim sebagai attachment `attachmentName`.
  */
-function buildStorePanel({ guild, communityName, open, closedReason = null, attachmentName }) {
+function buildStorePanel({
+  guild,
+  communityName,
+  open,
+  closedReason = null,
+  closedProducts = [],
+  attachmentName,
+}) {
   const name = communityName || 'MANTRA CREATIVE';
   const iconURL = guild?.iconURL({ size: 256 }) || undefined;
 
-  const robuxOpen = open;
-  const otherOpen = open || closedReason === 'stock';
+  // closedProducts = produk yang ditutup satuan lewat /toko-tutup produk:...
+  const robuxOpen = open && !closedProducts.includes(PRODUCT_ROBUX);
+  const storeOpenForOthers = open || closedReason === 'stock';
+  const skinRodOpen = storeOpenForOthers && !closedProducts.includes(PRODUCT_SKINROD);
+  const royalPetOpen = storeOpenForOthers && !closedProducts.includes(PRODUCT_ROYALPET);
 
   const container = new ContainerBuilder().setAccentColor(COLOR_PINK);
 
@@ -162,10 +172,10 @@ function buildStorePanel({ guild, communityName, open, closedReason = null, atta
       .setButtonAccessory(
         new ButtonBuilder()
           .setCustomId(BTN_PRODUCT_SKINROD)
-          .setLabel(otherOpen ? 'Beli Skin Rod' : 'Toko Tutup')
-          .setStyle(otherOpen ? ButtonStyle.Primary : ButtonStyle.Secondary)
+          .setLabel(skinRodOpen ? 'Beli Skin Rod' : 'Skin Rod Tutup')
+          .setStyle(skinRodOpen ? ButtonStyle.Primary : ButtonStyle.Secondary)
           .setEmoji('🎣')
-          .setDisabled(!otherOpen)
+          .setDisabled(!skinRodOpen)
       )
   );
 
@@ -182,10 +192,10 @@ function buildStorePanel({ guild, communityName, open, closedReason = null, atta
       .setButtonAccessory(
         new ButtonBuilder()
           .setCustomId(BTN_PRODUCT_ROYALPET)
-          .setLabel(otherOpen ? 'Beli Royal Pet' : 'Toko Tutup')
-          .setStyle(otherOpen ? ButtonStyle.Primary : ButtonStyle.Secondary)
+          .setLabel(royalPetOpen ? 'Beli Royal Pet' : 'Royal Pet Tutup')
+          .setStyle(royalPetOpen ? ButtonStyle.Primary : ButtonStyle.Secondary)
           .setEmoji('👑')
-          .setDisabled(!otherOpen)
+          .setDisabled(!royalPetOpen)
       )
   );
 
