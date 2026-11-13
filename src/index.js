@@ -1,4 +1,12 @@
-const { Client, GatewayIntentBits, PermissionFlagsBits, AttachmentBuilder, ChannelType, EmbedBuilder } = require('discord.js');
+const {
+  Client,
+  GatewayIntentBits,
+  PermissionFlagsBits,
+  AttachmentBuilder,
+  ChannelType,
+  EmbedBuilder,
+  MessageFlags,
+} = require('discord.js');
 const config = require('./config');
 const {
   lookupMember,
@@ -110,8 +118,7 @@ const {
   BTN_PRODUCT_ROYALPET: STORE_BTN_PRODUCT_ROYALPET,
   robuxEmojiTag,
   priceForRobux,
-  buildStorePanelEmbed,
-  buildStorePanelComponents,
+  buildStorePanel,
 } = require('./store/storePanel');
 const {
   USERNAME_MODAL_ID: STORE_USERNAME_MODAL_ID,
@@ -856,19 +863,32 @@ async function refreshStorePanel(client) {
   if (!message) return;
 
   const attachmentName = 'store-banner.gif';
+  const { components, flags } = buildStorePanel({
+    guild: channel.guild,
+    communityName: config.community.name,
+    open: panel.open,
+    closedReason: panel.closedReason || null,
+    attachmentName,
+  });
+  const files = [new AttachmentBuilder(STORE_GIF_PATH, { name: attachmentName })];
+
+  // Pesan panel versi lama (embed biasa) tidak bisa diubah jadi Components V2
+  // lewat edit -- kirim ulang sebagai pesan baru, hapus yang lama, lalu
+  // simpan ID barunya. Otomatis, admin tidak perlu /toko-panel ulang.
+  if (!message.flags.has(MessageFlags.IsComponentsV2)) {
+    const newMessage = await channel.send({ components, flags, files }).catch((error) => {
+      console.error('[store] Gagal kirim ulang panel Store (migrasi V2):', error);
+      return null;
+    });
+    if (newMessage) {
+      await message.delete().catch(() => null);
+      storePanelStore.setStorePanel({ ...panel, messageId: newMessage.id });
+    }
+    return;
+  }
+
   await message
-    .edit({
-      embeds: [
-        buildStorePanelEmbed({
-          guild: channel.guild,
-          communityName: config.community.name,
-          open: panel.open,
-          attachmentName,
-        }),
-      ],
-      components: buildStorePanelComponents({ open: panel.open, closedReason: panel.closedReason || null }),
-      files: [new AttachmentBuilder(STORE_GIF_PATH, { name: attachmentName })],
-    })
+    .edit({ components, flags, files })
     .catch((error) => console.error('[store] Gagal refresh panel Store:', error));
 }
 
@@ -887,16 +907,16 @@ async function handleTokoPanelCommand(interaction) {
 
   const open = existing?.open ?? true;
   const attachmentName = 'store-banner.gif';
+  const { components, flags } = buildStorePanel({
+    guild: interaction.guild,
+    communityName: config.community.name,
+    open,
+    closedReason: existing?.closedReason || null,
+    attachmentName,
+  });
   const panelMessage = await interaction.channel.send({
-    embeds: [
-      buildStorePanelEmbed({
-        guild: interaction.guild,
-        communityName: config.community.name,
-        open,
-        attachmentName,
-      }),
-    ],
-    components: buildStorePanelComponents({ open, closedReason: existing?.closedReason || null }),
+    components,
+    flags,
     files: [new AttachmentBuilder(STORE_GIF_PATH, { name: attachmentName })],
   });
 
