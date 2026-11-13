@@ -110,7 +110,7 @@ function buildStorePanel({ guild, communityName, open, closedReason = null, atta
   // buka/tutup cukup kelihatan dari tombol produk di bawah.
   const headerTexts = [
     `# 🛍️ ${name} STORE`,
-    'Tempat resmi buat top up & beli produk digital komunitas kami.',
+    'Pilih produk di bawah sesuai kebutuhanmu untuk membuka tiket pemesanan. Tim admin akan membantu proses selanjutnya. Pastikan kamu memilih kategori yang tepat agar pesanan dapat ditangani dengan lancar!',
   ];
   if (iconURL) {
     container.addSectionComponents(
@@ -155,7 +155,7 @@ function buildStorePanel({ guild, communityName, open, closedReason = null, atta
         new TextDisplayBuilder().setContent(
           '### 🎣 Paket Skin Rod · Mount Mellow\n' +
             config.store.skinRodPackages
-              .map((p) => `> **${p.label}** (${p.skins} Skin) -- ${formatRupiah(p.price)}`)
+              .map((p) => `**${p.label}** (${p.skins} Skin) -- ${formatRupiah(p.price)}`)
               .join('\n')
         )
       )
@@ -176,7 +176,7 @@ function buildStorePanel({ guild, communityName, open, closedReason = null, atta
     new SectionBuilder()
       .addTextDisplayComponents(
         new TextDisplayBuilder().setContent(
-          `### 👑 Royal Pet · Mount Mellow\n> Pet eksklusif -- ${formatRupiah(config.store.royalPetPrice)}`
+          `### 👑 Royal Pet · Mount Mellow\nPet eksklusif -- ${formatRupiah(config.store.royalPetPrice)}`
         )
       )
       .setButtonAccessory(
