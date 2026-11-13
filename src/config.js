@@ -109,6 +109,13 @@ module.exports = {
       100, 200, 300, 400, 500, 600, 700, 800, 900, 1000,
       1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000,
     ],
+    // Produk map Mount Mellow (dijual manual oleh staff lewat ticket, tanpa stock).
+    skinRodPackages: [
+      { id: 'starter', label: 'Starter', skins: 5, price: 59000 },
+      { id: 'premium', label: 'Premium', skins: 10, price: 109000 },
+      { id: 'allin', label: 'All in Skin', skins: 23, price: 200000 },
+    ],
+    royalPetPrice: Number(process.env.STORE_ROYAL_PET_PRICE || 50000),
     // Emoji custom server buat ikon Robux (ganti emoji unicode 💎).
     robuxEmoji: {
       id: process.env.EMOJI_ROBUX_ID || '1559070786088730735',
