@@ -19,7 +19,20 @@ const BTN_CONFIRM_NO = 'store_confirm_no';
 
 const ROBUX_AMOUNT_SELECT_ID = 'store_robux_amount_select';
 
-function buildRobloxUsernameModal() {
+const SKINROD_PACKAGE_SELECT_ID = 'store_skinrod_package_select';
+
+const PRODUCT_TITLES = {
+  robux: 'Beli Robux',
+  skinrod: 'Paket Skin Rod',
+  royalpet: 'Royal Pet',
+};
+
+/**
+ * Modal username Roblox. customId Robux tetap `store_username_modal` (tidak
+ * berubah); produk lain ditambah suffix `:<produk>` supaya handler tahu
+ * alur mana yang dipakai.
+ */
+function buildRobloxUsernameModal(product = 'robux') {
   const usernameInput = new TextInputBuilder()
     .setCustomId(USERNAME_INPUT_ID)
     .setLabel('Username Roblox kamu')
@@ -30,9 +43,38 @@ function buildRobloxUsernameModal() {
     .setRequired(true);
 
   return new ModalBuilder()
-    .setCustomId(USERNAME_MODAL_ID)
-    .setTitle('Beli Robux -- Username Roblox')
+    .setCustomId(product === 'robux' ? USERNAME_MODAL_ID : `${USERNAME_MODAL_ID}:${product}`)
+    .setTitle(`${PRODUCT_TITLES[product] || 'Order'} -- Username Roblox`.slice(0, 45))
     .addComponents(new ActionRowBuilder().addComponents(usernameInput));
+}
+
+/**
+ * Dropdown pilih paket Skin Rod (Starter / Premium / All in Skin).
+ */
+function buildSkinRodPackageComponents(packages) {
+  const select = new StringSelectMenuBuilder()
+    .setCustomId(SKINROD_PACKAGE_SELECT_ID)
+    .setPlaceholder('Pilih paket Skin Rod...')
+    .addOptions(
+      packages.map((pkg) =>
+        new StringSelectMenuOptionBuilder()
+          .setLabel(`${pkg.label} (${pkg.skins} Skin)`)
+          .setDescription(formatRupiah(pkg.price))
+          .setValue(pkg.id)
+          .setEmoji('🎣')
+      )
+    );
+
+  return [new ActionRowBuilder().addComponents(select)];
+}
+
+function buildSkinRodPackageEmbed(pending) {
+  return new EmbedBuilder()
+    .setColor(COLOR_PINK)
+    .setTitle('🎣 Pilih Paket Skin Rod')
+    .setDescription(
+      `Akun terverifikasi: \`${pending.robloxUsername}\`\n\nSilakan pilih paket Skin Rod yang ingin dibeli (map Mount Mellow).`
+    );
 }
 
 /**
@@ -92,6 +134,9 @@ module.exports = {
   BTN_CONFIRM_YES,
   BTN_CONFIRM_NO,
   ROBUX_AMOUNT_SELECT_ID,
+  SKINROD_PACKAGE_SELECT_ID,
+  buildSkinRodPackageComponents,
+  buildSkinRodPackageEmbed,
   buildRobloxUsernameModal,
   buildConfirmAccountEmbed,
   buildConfirmAccountComponents,
