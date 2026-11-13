@@ -18,10 +18,11 @@ const DIVIDER = '⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯';
 // jelas statusnya (aktif/nonaktif) langsung di panel, tanpa harus buka
 // dropdown dulu.
 const BTN_PRODUCT_ROBUX = 'store_btn_product_robux';
-const BTN_PRODUCT_COMING_SOON = 'store_btn_product_coming_soon';
-// Tetap disimpan untuk kompatibilitas penamaan produk di tempat lain.
+const BTN_PRODUCT_SKINROD = 'store_btn_product_skinrod';
+const BTN_PRODUCT_ROYALPET = 'store_btn_product_royalpet';
 const PRODUCT_ROBUX = 'robux';
-const PRODUCT_COMING_SOON = 'coming_soon';
+const PRODUCT_SKINROD = 'skinrod';
+const PRODUCT_ROYALPET = 'royalpet';
 
 // Emoji custom server buat ikon Robux (ganti emoji unicode 💎 di seluruh
 // panel Store/Ticket). Nama HARUS persis sama kayak nama emoji aslinya di
@@ -88,7 +89,7 @@ function buildStorePanelEmbed({ guild, communityName, open, attachmentName }) {
         name: '🛒 Cara Pembelian',
         value:
           '1️⃣ Klik tombol produk di bawah\n' +
-          '2️⃣ Ikuti proses verifikasi (khusus Robux: masukkan username Roblox kamu)\n' +
+          '2️⃣ Masukkan username Roblox kamu & konfirmasi akunnya\n' +
           '3️⃣ Pilih jumlah/varian produk yang diinginkan\n' +
           '4️⃣ Ticket privat otomatis dibuat untuk lanjut ke pembayaran\n' +
           '5️⃣ Tunggu staff memproses & mengonfirmasi pesanan kamu',
@@ -97,6 +98,16 @@ function buildStorePanelEmbed({ guild, communityName, open, attachmentName }) {
       {
         name: `${robuxEmojiTag()} Stock Robux Hari Ini`,
         value: buildStockText(),
+        inline: false,
+      },
+      {
+        name: '🏔️ Produk Map Mount Mellow',
+        value:
+          '🎣 **Paket Skin Rod**\n' +
+          config.store.skinRodPackages
+            .map((p) => `• ${p.label} (${p.skins} Skin) -- ${formatRupiah(p.price)}`)
+            .join('\n') +
+          `\n\n👑 **Royal Pet** -- ${formatRupiah(config.store.royalPetPrice)}`,
         inline: false,
       },
       {
@@ -115,31 +126,48 @@ function buildStorePanelEmbed({ guild, communityName, open, attachmentName }) {
   return embed;
 }
 
-function buildStorePanelComponents({ open }) {
+/**
+ * `open` = toko buka. `closedReason` 'stock' (stock Robux habis) cuma
+ * mengunci tombol Robux -- produk Mount Mellow tidak pakai stock, jadi
+ * tetap bisa dibeli. Tutup manual (/toko-tutup) mengunci semuanya.
+ */
+function buildStorePanelComponents({ open, closedReason = null }) {
+  const robuxOpen = open;
+  const otherOpen = open || closedReason === 'stock';
+
   const robuxButton = new ButtonBuilder()
     .setCustomId(BTN_PRODUCT_ROBUX)
-    .setLabel(open ? 'Beli Robux' : 'Toko Tutup')
-    .setStyle(open ? ButtonStyle.Success : ButtonStyle.Secondary)
+    .setLabel(robuxOpen ? 'Beli Robux' : 'Robux Tutup')
+    .setStyle(robuxOpen ? ButtonStyle.Success : ButtonStyle.Secondary)
     .setEmoji(ROBUX_EMOJI)
-    .setDisabled(!open);
+    .setDisabled(!robuxOpen);
 
-  const comingSoonButton = new ButtonBuilder()
-    .setCustomId(BTN_PRODUCT_COMING_SOON)
-    .setLabel('Coming Soon')
-    .setStyle(ButtonStyle.Secondary)
-    .setEmoji('🕒')
-    .setDisabled(true);
+  const skinRodButton = new ButtonBuilder()
+    .setCustomId(BTN_PRODUCT_SKINROD)
+    .setLabel(otherOpen ? 'Paket Skin Rod' : 'Toko Tutup')
+    .setStyle(otherOpen ? ButtonStyle.Primary : ButtonStyle.Secondary)
+    .setEmoji('🎣')
+    .setDisabled(!otherOpen);
 
-  return [new ActionRowBuilder().addComponents(robuxButton, comingSoonButton)];
+  const royalPetButton = new ButtonBuilder()
+    .setCustomId(BTN_PRODUCT_ROYALPET)
+    .setLabel(otherOpen ? 'Royal Pet' : 'Toko Tutup')
+    .setStyle(otherOpen ? ButtonStyle.Primary : ButtonStyle.Secondary)
+    .setEmoji('👑')
+    .setDisabled(!otherOpen);
+
+  return [new ActionRowBuilder().addComponents(robuxButton, skinRodButton, royalPetButton)];
 }
 
 module.exports = {
   COLOR_PINK,
   DIVIDER,
   BTN_PRODUCT_ROBUX,
-  BTN_PRODUCT_COMING_SOON,
+  BTN_PRODUCT_SKINROD,
+  BTN_PRODUCT_ROYALPET,
   PRODUCT_ROBUX,
-  PRODUCT_COMING_SOON,
+  PRODUCT_SKINROD,
+  PRODUCT_ROYALPET,
   ROBUX_EMOJI,
   robuxEmojiTag,
   formatRupiah,
