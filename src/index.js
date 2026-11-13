@@ -2002,34 +2002,41 @@ client.on('interactionCreate', async (interaction) => {
       return;
     }
 
-    await interaction.showModal(buildRobloxUsernameModal(product));
-    return;
-  }
-
-  // ==== Dropdown paket Skin Rod -> buat ticket ====
-  if (interaction.isStringSelectMenu() && interaction.customId === STORE_SKINROD_PACKAGE_SELECT_ID) {
-    const key = robuxFlowKey(interaction.guildId, interaction.user.id);
-    const pending = pendingRobuxFlow.get(key);
-    if (!pending || pending.product !== 'skinrod') {
-      await interaction.update({
-        content: '⚠️ Sesi order sudah kedaluwarsa. Silakan pilih produk lagi dari panel Store.',
-        embeds: [],
-        components: [],
+    // Skin Rod: pilih paket DULU (dropdown), baru isi username Roblox.
+    if (product === 'skinrod') {
+      await interaction.reply({
+        embeds: [buildSkinRodPackageEmbed()],
+        components: buildSkinRodPackageComponents(config.store.skinRodPackages),
+        ephemeral: true,
       });
       return;
     }
 
+    await interaction.showModal(buildRobloxUsernameModal(product));
+    return;
+  }
+
+  // ==== Dropdown paket Skin Rod -> buka modal username Roblox ====
+  if (interaction.isStringSelectMenu() && interaction.customId === STORE_SKINROD_PACKAGE_SELECT_ID) {
     const pkg = config.store.skinRodPackages.find((p) => p.id === interaction.values[0]);
     if (!pkg) {
       await interaction.update({ content: '⚠️ Paket tidak dikenali, coba pilih lagi.', embeds: [], components: [] });
       return;
     }
 
-    await finishStoreOrder(interaction, key, pending, {
-      product: 'skinrod',
-      itemLabel: `${pkg.label} (${pkg.skins} Skin)`,
-      price: pkg.price,
-    });
+    // Cek ulang ticket aktif (dropdown bisa dibuka lama setelah tombol diklik).
+    const existingTicket = ticketStore.getOpenTicketByBuyer(interaction.user.id);
+    if (existingTicket) {
+      await interaction.update({
+        content: `⚠️ Kamu masih punya ticket yang sedang berjalan di <#${existingTicket.channelId}>. Selesaikan/tunggu ticket itu ditutup dulu sebelum bikin ticket baru.`,
+        embeds: [],
+        components: [],
+      });
+      return;
+    }
+
+    // ID paket dibawa lewat customId modal (`store_username_modal:skinrod:<paket>`).
+    await interaction.showModal(buildRobloxUsernameModal('skinrod', pkg.id));
     return;
   }
 
@@ -2208,7 +2215,17 @@ client.on('interactionCreate', async (interaction) => {
     (interaction.customId === STORE_USERNAME_MODAL_ID || interaction.customId.startsWith(`${STORE_USERNAME_MODAL_ID}:`))
   ) {
     // customId polos = Robux; `:skinrod` / `:royalpet` = produk Mount Mellow.
-    const product = interaction.customId.split(':')[1] || 'robux';
+    const [, modalProduct, modalVariant] = interaction.customId.split(':');
+    const product = modalProduct || 'robux';
+    const skinRodPackage =
+      product === 'skinrod' ? config.store.skinRodPackages.find((p) => p.id === modalVariant) : null;
+    if (product === 'skinrod' && !skinRodPackage) {
+      await interaction.reply({
+        content: '⚠️ Paket Skin Rod tidak dikenali. Pilih produk lagi dari panel Store.',
+        ephemeral: true,
+      });
+      return;
+    }
     const username = interaction.fields.getTextInputValue(STORE_USERNAME_INPUT_ID).trim();
     await interaction.deferReply({ ephemeral: true });
 
@@ -2267,6 +2284,7 @@ client.on('interactionCreate', async (interaction) => {
 
     pendingRobuxFlow.set(robuxFlowKey(interaction.guildId, interaction.user.id), {
       product,
+      packageId: skinRodPackage?.id || null,
       robloxUsername: member.username,
       robloxDisplayName: member.displayName,
       robloxUserId: member.id,
@@ -2362,9 +2380,20 @@ client.on('interactionCreate', async (interaction) => {
 
     // Produk Mount Mellow: tanpa cek eligibility/stock Robux.
     if (pending.product === 'skinrod') {
-      await interaction.update({
-        embeds: [buildSkinRodPackageEmbed(pending)],
-        components: buildSkinRodPackageComponents(config.store.skinRodPackages),
+      const pkg = config.store.skinRodPackages.find((p) => p.id === pending.packageId);
+      if (!pkg) {
+        pendingRobuxFlow.delete(key);
+        await interaction.update({
+          content: '⚠️ Paket Skin Rod tidak ditemukan. Silakan pilih produk lagi dari panel Store.',
+          embeds: [],
+          components: [],
+        });
+        return;
+      }
+      await finishStoreOrder(interaction, key, pending, {
+        product: 'skinrod',
+        itemLabel: `${pkg.label} (${pkg.skins} Skin)`,
+        price: pkg.price,
       });
       return;
     }
