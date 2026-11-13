@@ -30,7 +30,29 @@ const BTN_DM_OPEN_TICKET = 'store_dm_open_ticket'; // tidak dipakai langsung (li
 /**
  * Embed utama di dalam channel ticket -- info pesanan + username Roblox.
  */
-function buildTicketEmbed({ ticketNumber, buyerId, robloxUsername, robuxAmount, price, status }) {
+const PRODUCT_NAMES = { robux: 'Robux', skinrod: 'Paket Skin Rod', royalpet: 'Royal Pet' };
+const PRODUCT_EMOJIS = { skinrod: '🎣', royalpet: '👑' };
+
+/**
+ * Label singkat produk sebuah ticket (dipakai di DM & testimoni). Ticket
+ * lama (sebelum ada produk lain) tidak punya field `product` -> Robux.
+ */
+function ticketProductLabel(ticket) {
+  const product = ticket.product || 'robux';
+  if (product === 'robux') return `${robuxEmojiTag()} Robux (${ticket.robuxAmount})`;
+  return `${PRODUCT_EMOJIS[product] || '📦'} ${ticket.itemLabel || PRODUCT_NAMES[product] || product}`;
+}
+
+function buildTicketEmbed({
+  ticketNumber,
+  buyerId,
+  robloxUsername,
+  robuxAmount,
+  price,
+  status,
+  product = 'robux',
+  itemLabel = null,
+}) {
   const statusLabel =
     status === 'open'
       ? '🟡 Menunggu Pembayaran'
@@ -50,10 +72,12 @@ function buildTicketEmbed({ ticketNumber, buyerId, robloxUsername, robuxAmount, 
     )
     .addFields(
       { name: 'Buyer', value: `<@${buyerId}>`, inline: true },
-      { name: 'Produk', value: 'Robux', inline: true },
+      { name: 'Produk', value: PRODUCT_NAMES[product] || product, inline: true },
       { name: 'Status', value: statusLabel, inline: true },
       { name: 'Username Roblox', value: `\`${robloxUsername}\``, inline: true },
-      { name: 'Jumlah Robux', value: `${robuxEmojiTag()} ${robuxAmount} Robux`, inline: true },
+      product === 'robux'
+        ? { name: 'Jumlah Robux', value: `${robuxEmojiTag()} ${robuxAmount} Robux`, inline: true }
+        : { name: 'Item', value: `${PRODUCT_EMOJIS[product] || '📦'} ${itemLabel || PRODUCT_NAMES[product]}`, inline: true },
       { name: 'Harga', value: `${formatRupiah(price)}`, inline: true }
     )
     .setFooter({ text: `Order ID: #${ticketNumber}` })
@@ -155,6 +179,7 @@ module.exports = {
   BTN_TESTIMONIAL_SKIP,
   TESTIMONIAL_COMMENT_MODAL_ID,
   TESTIMONIAL_COMMENT_INPUT_ID,
+  ticketProductLabel,
   buildTicketEmbed,
   buildTicketComponents,
   buildCloseReasonComponents,
