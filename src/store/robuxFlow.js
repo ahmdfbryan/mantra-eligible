@@ -32,7 +32,7 @@ const PRODUCT_TITLES = {
  * berubah); produk lain ditambah suffix `:<produk>` supaya handler tahu
  * alur mana yang dipakai.
  */
-function buildRobloxUsernameModal(product = 'robux') {
+function buildRobloxUsernameModal(product = 'robux', variant = null) {
   const usernameInput = new TextInputBuilder()
     .setCustomId(USERNAME_INPUT_ID)
     .setLabel('Username Roblox kamu')
@@ -43,7 +43,11 @@ function buildRobloxUsernameModal(product = 'robux') {
     .setRequired(true);
 
   return new ModalBuilder()
-    .setCustomId(product === 'robux' ? USERNAME_MODAL_ID : `${USERNAME_MODAL_ID}:${product}`)
+    .setCustomId(
+      product === 'robux'
+        ? USERNAME_MODAL_ID
+        : `${USERNAME_MODAL_ID}:${product}${variant ? `:${variant}` : ''}`
+    )
     .setTitle(`${PRODUCT_TITLES[product] || 'Order'} -- Username Roblox`.slice(0, 45))
     .addComponents(new ActionRowBuilder().addComponents(usernameInput));
 }
@@ -68,12 +72,12 @@ function buildSkinRodPackageComponents(packages) {
   return [new ActionRowBuilder().addComponents(select)];
 }
 
-function buildSkinRodPackageEmbed(pending) {
+function buildSkinRodPackageEmbed() {
   return new EmbedBuilder()
     .setColor(COLOR_PINK)
     .setTitle('🎣 Pilih Paket Skin Rod')
     .setDescription(
-      `Akun terverifikasi: \`${pending.robloxUsername}\`\n\nSilakan pilih paket Skin Rod yang ingin dibeli (map Mount Mellow).`
+      'Silakan pilih paket Skin Rod yang ingin dibeli (map Mount Mellow). Setelah itu kamu akan diminta memasukkan username Roblox.'
     );
 }
 
