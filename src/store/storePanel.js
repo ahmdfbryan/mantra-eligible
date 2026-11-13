@@ -1,8 +1,14 @@
 const {
-  EmbedBuilder,
-  ActionRowBuilder,
+  ContainerBuilder,
+  SectionBuilder,
+  TextDisplayBuilder,
+  SeparatorBuilder,
+  SeparatorSpacingSize,
+  MediaGalleryBuilder,
+  MediaGalleryItemBuilder,
   ButtonBuilder,
   ButtonStyle,
+  MessageFlags,
 } = require('discord.js');
 const config = require('../config');
 const ticketStore = require('./ticketStore');
@@ -11,12 +17,11 @@ const stockStore = require('./stockStore');
 const COLOR_PINK = 0xff2f9c;
 // Lebih pendek dari divider di panel lain (rolePanel.js dkk) -- yang versi
 // 25 karakter kepotong jadi 2 baris di layar HP (lebar sempit), ini aman di
-// HP maupun PC.
+// HP maupun PC. Masih dipakai embed ticket/testimoni/leaderboard.
 const DIVIDER = '⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯';
 
-// Dropdown produk diganti jadi tombol -- lebih enak diklik & kelihatan
-// jelas statusnya (aktif/nonaktif) langsung di panel, tanpa harus buka
-// dropdown dulu.
+// Tombol produk -- sekarang jadi accessory di sebelah tiap baris produk
+// (Components V2), bukan deretan tombol terpisah di bawah.
 const BTN_PRODUCT_ROBUX = 'store_btn_product_robux';
 const BTN_PRODUCT_SKINROD = 'store_btn_product_skinrod';
 const BTN_PRODUCT_ROYALPET = 'store_btn_product_royalpet';
@@ -33,18 +38,6 @@ function robuxEmojiTag() {
   return ROBUX_EMOJI.id ? `<:${ROBUX_EMOJI.name}:${ROBUX_EMOJI.id}>` : '💎';
 }
 
-/**
- * Teks "Stock Robux Hari Ini" -- kalau admin belum pernah /toko-stock,
- * dianggap tidak dibatasi (tetap tampilkan status apa adanya).
- */
-function buildStockText() {
-  const stock = stockStore.getStock();
-  if (stock.total === null || stock.remaining === null) {
-    return 'Belum di-set';
-  }
-  return `${stock.remaining.toLocaleString('id-ID')} / ${stock.total.toLocaleString('id-ID')} tersisa`;
-}
-
 function formatRupiah(amount) {
   return `Rp${amount.toLocaleString('id-ID')}`;
 }
@@ -57,6 +50,18 @@ function priceForRobux(amount, ratePer100) {
 }
 
 /**
+ * Teks stock Robux hari ini -- kalau admin belum pernah /toko-stock,
+ * dianggap tidak dibatasi (tampilkan "Belum di-set").
+ */
+function buildStockText() {
+  const stock = stockStore.getStock();
+  if (stock.total === null || stock.remaining === null) {
+    return 'Belum di-set';
+  }
+  return `${stock.remaining.toLocaleString('id-ID')} / ${stock.total.toLocaleString('id-ID')} tersisa`;
+}
+
+/**
  * Teks "Total Transaksi" + "Rating Toko" (rata-rata dari semua testimoni
  * yang masuk) -- dihitung ulang tiap kali panel Store dibangun/di-refresh.
  */
@@ -64,99 +69,149 @@ function buildStoreStatsText() {
   const completedCount = ticketStore.getCompletedCount();
   const { average, count: ratingCount } = ticketStore.getAverageRating();
 
-  const ratingText = ratingCount > 0 ? `${average.toFixed(1)}/5 (${ratingCount} testimoni)` : 'Belum ada rating';
+  const ratingText = ratingCount > 0 ? `⭐ ${average.toFixed(1)}/5 (${ratingCount} testimoni)` : 'Belum ada rating';
 
-  return `**Total Transaksi** : ${completedCount}\n**Rating Toko** : ${ratingText}`;
+  return `🧾 **Total Transaksi** : ${completedCount}\n⭐ **Rating Toko** : ${ratingText}`;
 }
 
 /**
- * Panel utama "Store" -- info toko, tata cara pembelian, dan status
- * buka/tutup yang auto-refresh begitu admin jalankan /toko-buka atau
- * /toko-tutup (embed yang sama di-edit ulang, bukan dikirim pesan baru).
+ * Panel utama "Store" -- Components V2 (card premium): banner, status toko,
+ * tiap produk satu baris lengkap dengan tombol beli di sampingnya, tata
+ * cara pembelian, dan statistik. Auto-refresh begitu admin jalankan
+ * /toko-buka, /toko-tutup, atau stock berubah (pesan yang sama di-edit
+ * ulang, bukan dikirim pesan baru).
+ *
+ * `closedReason` 'stock' (stock Robux habis) cuma mengunci produk Robux --
+ * produk Mount Mellow tidak pakai stock. Tutup manual (/toko-tutup)
+ * mengunci semuanya.
+ *
+ * Return { components, flags } -- flags WAJIB IsComponentsV2 saat
+ * dikirim/di-edit. Banner dikirim sebagai attachment `attachmentName`.
  */
-function buildStorePanelEmbed({ guild, communityName, open, attachmentName }) {
+function buildStorePanel({ guild, communityName, open, closedReason = null, attachmentName }) {
   const name = communityName || 'MANTRA CREATIVE';
-  const iconURL = guild?.iconURL({ size: 128 }) || undefined;
+  const iconURL = guild?.iconURL({ size: 256 }) || undefined;
 
-  const embed = new EmbedBuilder()
-    .setColor(COLOR_PINK)
-    .setTitle('🛍️ MANTRA CREATIVE STORE')
-    .setDescription(
-      `Selamat datang di **${name} Store** -- tempat resmi buat top up & beli produk digital komunitas kami.\n${DIVIDER}`
-    )
-    .addFields(
-      {
-        name: '🛒 Cara Pembelian',
-        value:
-          '1️⃣ Klik tombol produk di bawah\n' +
-          '2️⃣ Masukkan username Roblox kamu & konfirmasi akunnya\n' +
-          '3️⃣ Pilih jumlah/varian produk yang diinginkan\n' +
-          '4️⃣ Ticket privat otomatis dibuat untuk lanjut ke pembayaran\n' +
-          '5️⃣ Tunggu staff memproses & mengonfirmasi pesanan kamu',
-        inline: false,
-      },
-      {
-        name: `${robuxEmojiTag()} Stock Robux Hari Ini`,
-        value: buildStockText(),
-        inline: false,
-      },
-      {
-        name: '🏔️ Produk Map Mount Mellow',
-        value:
-          '🎣 **Paket Skin Rod**\n' +
-          config.store.skinRodPackages
-            .map((p) => `• ${p.label} (${p.skins} Skin) -- ${formatRupiah(p.price)}`)
-            .join('\n') +
-          `\n\n👑 **Royal Pet** -- ${formatRupiah(config.store.royalPetPrice)}`,
-        inline: false,
-      },
-      {
-        name: '📊 Statistik Toko',
-        value: buildStoreStatsText(),
-        inline: false,
-      }
-    )
-    .setThumbnail(iconURL || null)
-    .setFooter({ text: `${name} -- transaksi aman lewat ticket privat` });
-
-  if (attachmentName) {
-    embed.setImage(`attachment://${attachmentName}`);
-  }
-
-  return embed;
-}
-
-/**
- * `open` = toko buka. `closedReason` 'stock' (stock Robux habis) cuma
- * mengunci tombol Robux -- produk Mount Mellow tidak pakai stock, jadi
- * tetap bisa dibeli. Tutup manual (/toko-tutup) mengunci semuanya.
- */
-function buildStorePanelComponents({ open, closedReason = null }) {
   const robuxOpen = open;
   const otherOpen = open || closedReason === 'stock';
 
-  const robuxButton = new ButtonBuilder()
-    .setCustomId(BTN_PRODUCT_ROBUX)
-    .setLabel(robuxOpen ? 'Beli Robux' : 'Robux Tutup')
-    .setStyle(robuxOpen ? ButtonStyle.Success : ButtonStyle.Secondary)
-    .setEmoji(ROBUX_EMOJI)
-    .setDisabled(!robuxOpen);
+  const container = new ContainerBuilder().setAccentColor(COLOR_PINK);
 
-  const skinRodButton = new ButtonBuilder()
-    .setCustomId(BTN_PRODUCT_SKINROD)
-    .setLabel(otherOpen ? 'Paket Skin Rod' : 'Toko Tutup')
-    .setStyle(otherOpen ? ButtonStyle.Primary : ButtonStyle.Secondary)
-    .setEmoji('🎣')
-    .setDisabled(!otherOpen);
+  // ---- Banner ----
+  if (attachmentName) {
+    container.addMediaGalleryComponents(
+      new MediaGalleryBuilder().addItems(new MediaGalleryItemBuilder().setURL(`attachment://${attachmentName}`))
+    );
+  }
 
-  const royalPetButton = new ButtonBuilder()
-    .setCustomId(BTN_PRODUCT_ROYALPET)
-    .setLabel(otherOpen ? 'Royal Pet' : 'Toko Tutup')
-    .setStyle(otherOpen ? ButtonStyle.Primary : ButtonStyle.Secondary)
-    .setEmoji('👑')
-    .setDisabled(!otherOpen);
+  // ---- Header (SectionBuilder WAJIB punya accessory -- kalau server nggak
+  // punya icon, pakai TextDisplay polos) ----
+  // Sengaja TANPA keterangan "Status Toko" (permintaan admin) -- status
+  // buka/tutup cukup kelihatan dari tombol produk di bawah.
+  const headerTexts = [
+    `# 🛍️ ${name} STORE`,
+    'Tempat resmi buat top up & beli produk digital komunitas kami.',
+  ];
+  if (iconURL) {
+    container.addSectionComponents(
+      new SectionBuilder()
+        .addTextDisplayComponents(...headerTexts.map((t) => new TextDisplayBuilder().setContent(t)))
+        .setThumbnailAccessory((thumbnail) => thumbnail.setURL(iconURL).setDescription(name))
+    );
+  } else {
+    container.addTextDisplayComponents(...headerTexts.map((t) => new TextDisplayBuilder().setContent(t)));
+  }
 
-  return [new ActionRowBuilder().addComponents(robuxButton, skinRodButton, royalPetButton)];
+  container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Large).setDivider(true));
+
+  // ---- Produk 1: Robux ----
+  container.addSectionComponents(
+    new SectionBuilder()
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          `### ${robuxEmojiTag()} Robux\n` +
+            `Mulai ${formatRupiah(config.store.robuxRatePer100)} / 100 Robux (100 -- ${config.store.robuxOptions[
+              config.store.robuxOptions.length - 1
+            ].toLocaleString('id-ID')} Robux)\n` +
+            `📦 Stock hari ini: **${buildStockText()}**`
+        )
+      )
+      .setButtonAccessory(
+        new ButtonBuilder()
+          .setCustomId(BTN_PRODUCT_ROBUX)
+          .setLabel(robuxOpen ? 'Beli Robux' : 'Robux Tutup')
+          .setStyle(robuxOpen ? ButtonStyle.Success : ButtonStyle.Secondary)
+          .setEmoji(ROBUX_EMOJI)
+          .setDisabled(!robuxOpen)
+      )
+  );
+
+  container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
+
+  // ---- Produk 2: Paket Skin Rod ----
+  container.addSectionComponents(
+    new SectionBuilder()
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          '### 🎣 Paket Skin Rod · Mount Mellow\n' +
+            config.store.skinRodPackages
+              .map((p) => `> **${p.label}** (${p.skins} Skin) -- ${formatRupiah(p.price)}`)
+              .join('\n')
+        )
+      )
+      .setButtonAccessory(
+        new ButtonBuilder()
+          .setCustomId(BTN_PRODUCT_SKINROD)
+          .setLabel(otherOpen ? 'Beli Skin Rod' : 'Toko Tutup')
+          .setStyle(otherOpen ? ButtonStyle.Primary : ButtonStyle.Secondary)
+          .setEmoji('🎣')
+          .setDisabled(!otherOpen)
+      )
+  );
+
+  container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
+
+  // ---- Produk 3: Royal Pet ----
+  container.addSectionComponents(
+    new SectionBuilder()
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          `### 👑 Royal Pet · Mount Mellow\n> Pet eksklusif -- ${formatRupiah(config.store.royalPetPrice)}`
+        )
+      )
+      .setButtonAccessory(
+        new ButtonBuilder()
+          .setCustomId(BTN_PRODUCT_ROYALPET)
+          .setLabel(otherOpen ? 'Beli Royal Pet' : 'Toko Tutup')
+          .setStyle(otherOpen ? ButtonStyle.Primary : ButtonStyle.Secondary)
+          .setEmoji('👑')
+          .setDisabled(!otherOpen)
+      )
+  );
+
+  container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Large).setDivider(true));
+
+  // ---- Cara pembelian ----
+  container.addTextDisplayComponents(
+    new TextDisplayBuilder().setContent(
+      '### 🛒 Cara Pembelian\n' +
+        '1️⃣ Klik tombol **Beli** di produk yang kamu mau\n' +
+        '2️⃣ Masukkan username Roblox kamu & konfirmasi akunnya\n' +
+        '3️⃣ Pilih jumlah/varian produk yang diinginkan\n' +
+        '4️⃣ Ticket privat otomatis dibuat untuk lanjut ke pembayaran\n' +
+        '5️⃣ Tunggu staff memproses & mengonfirmasi pesanan kamu'
+    )
+  );
+
+  container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
+
+  // ---- Statistik + footer ----
+  container.addTextDisplayComponents(
+    new TextDisplayBuilder().setContent(`### 📊 Statistik Toko\n${buildStoreStatsText()}`),
+    new TextDisplayBuilder().setContent(`-# 🔒 ${name} -- transaksi aman lewat ticket privat`)
+  );
+
+  return { components: [container], flags: MessageFlags.IsComponentsV2 };
 }
 
 module.exports = {
@@ -172,6 +227,5 @@ module.exports = {
   robuxEmojiTag,
   formatRupiah,
   priceForRobux,
-  buildStorePanelEmbed,
-  buildStorePanelComponents,
+  buildStorePanel,
 };
