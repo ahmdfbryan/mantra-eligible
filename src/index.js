@@ -1,6 +1,12 @@
 const { Client, GatewayIntentBits, PermissionFlagsBits, AttachmentBuilder, ChannelType, EmbedBuilder } = require('discord.js');
 const config = require('./config');
-const { lookupMember, getGroupIconUrl, RobloxApiError } = require('./roblox');
+const {
+  lookupMember,
+  getUserByUsername,
+  getAvatarHeadshotUrl,
+  getGroupIconUrl,
+  RobloxApiError,
+} = require('./roblox');
 const {
   buildEligibilityEmbed,
   buildNotMemberEmbed,
@@ -100,7 +106,8 @@ const { getOrCreateTicketCategory } = require('./store/ticketCategory');
 const {
   COLOR_PINK: STORE_COLOR_PINK,
   BTN_PRODUCT_ROBUX: STORE_BTN_PRODUCT_ROBUX,
-  BTN_PRODUCT_COMING_SOON: STORE_BTN_PRODUCT_COMING_SOON,
+  BTN_PRODUCT_SKINROD: STORE_BTN_PRODUCT_SKINROD,
+  BTN_PRODUCT_ROYALPET: STORE_BTN_PRODUCT_ROYALPET,
   robuxEmojiTag,
   priceForRobux,
   buildStorePanelEmbed,
@@ -112,6 +119,9 @@ const {
   BTN_CONFIRM_YES: STORE_BTN_CONFIRM_YES,
   BTN_CONFIRM_NO: STORE_BTN_CONFIRM_NO,
   ROBUX_AMOUNT_SELECT_ID: STORE_ROBUX_AMOUNT_SELECT_ID,
+  SKINROD_PACKAGE_SELECT_ID: STORE_SKINROD_PACKAGE_SELECT_ID,
+  buildSkinRodPackageComponents,
+  buildSkinRodPackageEmbed,
   buildRobloxUsernameModal,
   buildConfirmAccountEmbed,
   buildConfirmAccountComponents,
@@ -126,6 +136,7 @@ const {
   BTN_TESTIMONIAL_SKIP: STORE_BTN_TESTIMONIAL_SKIP,
   TESTIMONIAL_COMMENT_MODAL_ID: STORE_TESTIMONIAL_COMMENT_MODAL_ID,
   TESTIMONIAL_COMMENT_INPUT_ID: STORE_TESTIMONIAL_COMMENT_INPUT_ID,
+  ticketProductLabel,
   buildTicketEmbed,
   buildTicketComponents,
   buildCloseReasonComponents,
@@ -855,7 +866,7 @@ async function refreshStorePanel(client) {
           attachmentName,
         }),
       ],
-      components: buildStorePanelComponents({ open: panel.open }),
+      components: buildStorePanelComponents({ open: panel.open, closedReason: panel.closedReason || null }),
       files: [new AttachmentBuilder(STORE_GIF_PATH, { name: attachmentName })],
     })
     .catch((error) => console.error('[store] Gagal refresh panel Store:', error));
@@ -885,11 +896,16 @@ async function handleTokoPanelCommand(interaction) {
         attachmentName,
       }),
     ],
-    components: buildStorePanelComponents({ open }),
+    components: buildStorePanelComponents({ open, closedReason: existing?.closedReason || null }),
     files: [new AttachmentBuilder(STORE_GIF_PATH, { name: attachmentName })],
   });
 
-  storePanelStore.setStorePanel({ channelId: interaction.channelId, messageId: panelMessage.id, open });
+  storePanelStore.setStorePanel({
+    channelId: interaction.channelId,
+    messageId: panelMessage.id,
+    open,
+    closedReason: existing?.closedReason || null,
+  });
   await interaction.editReply('✅ Panel Store dipasang & live di channel ini.');
 }
 
@@ -1039,7 +1055,8 @@ async function handleTokoLeaderboardCommand(interaction) {
  * Buat channel ticket privat (category auto-split tiap 50 channel), simpan
  * datanya, kirim embed order ke dalam ticket, dan DM buyer info ticketnya.
  */
-async function createRobuxTicket(interaction, pending, robuxAmount, price) {
+async function createStoreTicket(interaction, pending, order) {
+  const { product = 'robux', robuxAmount = null, itemLabel = null, price } = order;
   const guild = interaction.guild;
   const category = await getOrCreateTicketCategory(guild);
   const ticketId = ticketStore.generateTicketId();
@@ -1087,10 +1104,11 @@ async function createRobuxTicket(interaction, pending, robuxAmount, price) {
     ticketNumber: ticketId,
     guildId: guild.id,
     buyerId: interaction.user.id,
-    product: 'robux',
+    product,
     robloxUsername: pending.robloxUsername,
     robloxUserId: pending.robloxUserId,
     robuxAmount,
+    itemLabel,
     price,
   });
 
@@ -1104,6 +1122,8 @@ async function createRobuxTicket(interaction, pending, robuxAmount, price) {
         robuxAmount,
         price,
         status: 'open',
+        product,
+        itemLabel,
       }),
     ],
     components: buildTicketComponents(),
@@ -1112,13 +1132,53 @@ async function createRobuxTicket(interaction, pending, robuxAmount, price) {
   const dmEmbed = buildTicketDmEmbed({
     communityName: config.community.name,
     ticketNumber: ticketId,
-    productLabel: `${robuxEmojiTag()} Robux (${robuxAmount})`,
+    productLabel: ticketProductLabel({ product, robuxAmount, itemLabel }),
   });
   await interaction.user
     .send({ embeds: [dmEmbed], components: buildTicketDmComponents(channel.url) })
     .catch((error) => console.warn('[store] Gagal DM buyer (kemungkinan DM ditutup):', error.message));
 
   return channel;
+}
+
+/**
+ * Selesaikan order produk non-Robux (Skin Rod / Royal Pet): cek ulang
+ * ticket aktif, buat ticket, bersihkan state sementara. Tidak ada stock.
+ * `interaction` harus interaksi komponen (tombol/select) yang masih bisa di-update.
+ */
+async function finishStoreOrder(interaction, key, pending, order) {
+  const existingTicket =
+    ticketStore.getOpenTicketByBuyer(interaction.user.id) ||
+    ticketStore.getOpenTicketByRobloxUsername(pending.robloxUsername);
+  if (existingTicket) {
+    pendingRobuxFlow.delete(key);
+    await interaction.update({
+      content: `⚠️ Sudah ada ticket yang sedang berjalan di <#${existingTicket.channelId}>. Tunggu ticket itu ditutup dulu sebelum bikin ticket baru.`,
+      embeds: [],
+      components: [],
+    });
+    return;
+  }
+
+  await interaction.deferUpdate();
+  await interaction.editReply({ content: '⏳ Membuat ticket...', embeds: [], components: [] });
+
+  let ticketChannel;
+  try {
+    ticketChannel = await createStoreTicket(interaction, pending, order);
+  } catch (error) {
+    console.error('[store] Gagal bikin ticket:', error);
+    pendingRobuxFlow.delete(key);
+    await interaction.editReply({
+      content: '❌ Gagal membuat ticket. Coba lagi beberapa saat, atau hubungi staff.',
+    });
+    return;
+  }
+
+  pendingRobuxFlow.delete(key);
+  await interaction.editReply({
+    content: `✅ Ticket berhasil dibuat! Lanjut ke <#${ticketChannel.id}> untuk menyelesaikan pembayaran.`,
+  });
 }
 
 /**
@@ -1895,14 +1955,19 @@ client.on('interactionCreate', async (interaction) => {
   // (interaction.isModalSubmit())`) yang langsung `return` apa pun
   // customId-nya -- kalau blok Store ditaruh setelah itu, interaksinya akan
   // "ketelan" duluan dan tidak pernah sampai ke sini.
-  if (interaction.isButton() && interaction.customId === STORE_BTN_PRODUCT_COMING_SOON) {
-    await interaction.reply({ content: '🕒 Produk ini **Coming Soon**, belum tersedia sekarang.', ephemeral: true });
-    return;
-  }
+  const storeProductByButton = {
+    [STORE_BTN_PRODUCT_ROBUX]: 'robux',
+    [STORE_BTN_PRODUCT_SKINROD]: 'skinrod',
+    [STORE_BTN_PRODUCT_ROYALPET]: 'royalpet',
+  };
 
-  if (interaction.isButton() && interaction.customId === STORE_BTN_PRODUCT_ROBUX) {
+  if (interaction.isButton() && storeProductByButton[interaction.customId]) {
+    const product = storeProductByButton[interaction.customId];
     const panel = storePanelStore.getStorePanel();
-    if (panel && panel.open === false) {
+    // Toko tutup otomatis karena stock Robux habis -> cuma Robux yang terkunci.
+    const closedForThisProduct =
+      panel && panel.open === false && (product === 'robux' || panel.closedReason !== 'stock');
+    if (closedForThisProduct) {
       await interaction.reply({ content: '🔴 Toko sedang tutup, coba lagi nanti ya.', ephemeral: true });
       return;
     }
@@ -1917,14 +1982,41 @@ client.on('interactionCreate', async (interaction) => {
       return;
     }
 
-    await interaction.showModal(buildRobloxUsernameModal());
+    await interaction.showModal(buildRobloxUsernameModal(product));
+    return;
+  }
+
+  // ==== Dropdown paket Skin Rod -> buat ticket ====
+  if (interaction.isStringSelectMenu() && interaction.customId === STORE_SKINROD_PACKAGE_SELECT_ID) {
+    const key = robuxFlowKey(interaction.guildId, interaction.user.id);
+    const pending = pendingRobuxFlow.get(key);
+    if (!pending || pending.product !== 'skinrod') {
+      await interaction.update({
+        content: '⚠️ Sesi order sudah kedaluwarsa. Silakan pilih produk lagi dari panel Store.',
+        embeds: [],
+        components: [],
+      });
+      return;
+    }
+
+    const pkg = config.store.skinRodPackages.find((p) => p.id === interaction.values[0]);
+    if (!pkg) {
+      await interaction.update({ content: '⚠️ Paket tidak dikenali, coba pilih lagi.', embeds: [], components: [] });
+      return;
+    }
+
+    await finishStoreOrder(interaction, key, pending, {
+      product: 'skinrod',
+      itemLabel: `${pkg.label} (${pkg.skins} Skin)`,
+      price: pkg.price,
+    });
     return;
   }
 
   if (interaction.isStringSelectMenu() && interaction.customId === STORE_ROBUX_AMOUNT_SELECT_ID) {
     const key = robuxFlowKey(interaction.guildId, interaction.user.id);
     const pending = pendingRobuxFlow.get(key);
-    if (!pending) {
+    if (!pending || pending.product !== 'robux') {
       await interaction.update({
         content: '⚠️ Sesi order sudah kedaluwarsa. Silakan pilih produk lagi dari panel Store.',
         embeds: [],
@@ -1977,7 +2069,7 @@ client.on('interactionCreate', async (interaction) => {
 
     let ticketChannel;
     try {
-      ticketChannel = await createRobuxTicket(interaction, pending, amount, price);
+      ticketChannel = await createStoreTicket(interaction, pending, { product: 'robux', robuxAmount: amount, price });
     } catch (error) {
       console.error('[store] Gagal bikin ticket Robux:', error);
       pendingRobuxFlow.delete(key);
@@ -2045,24 +2137,27 @@ client.on('interactionCreate', async (interaction) => {
         })
         .catch(() => null);
     } else {
-      // Cancelled/Refund -- kembalikan stock Robux yang sempat dipotong.
+      // Cancelled/Refund -- kembalikan stock Robux yang sempat dipotong
+      // (cuma tiket Robux; produk Mount Mellow tidak pakai stock).
       // Kalau toko auto-closed karena stock habis dan sekarang ada sisa
       // lagi, buka otomatis (tapi JANGAN sentuh kalau yang nutup toko itu
       // admin manual lewat /toko-tutup).
-      const updatedStock = stockStore.releaseStock(ticket.robuxAmount);
-      const closedReason = storePanelStore.getStoreClosedReason();
-      if (closedReason === 'stock' && updatedStock.remaining !== null && updatedStock.remaining > 0) {
-        storePanelStore.setStoreOpen(true);
+      if ((ticket.product || 'robux') === 'robux') {
+        const updatedStock = stockStore.releaseStock(ticket.robuxAmount);
+        const closedReason = storePanelStore.getStoreClosedReason();
+        if (closedReason === 'stock' && updatedStock.remaining !== null && updatedStock.remaining > 0) {
+          storePanelStore.setStoreOpen(true);
+        }
+        await refreshStorePanel(interaction.client).catch((error) =>
+          console.error('[store] Gagal refresh panel Store (stock dikembalikan):', error)
+        );
+        await announceStockReleased(interaction.client, {
+          ticketNumber: ticket.ticketNumber,
+          robuxAmount: ticket.robuxAmount,
+          reasonLabel: reasonMeta.label,
+          stock: updatedStock,
+        });
       }
-      await refreshStorePanel(interaction.client).catch((error) =>
-        console.error('[store] Gagal refresh panel Store (stock dikembalikan):', error)
-      );
-      await announceStockReleased(interaction.client, {
-        ticketNumber: ticket.ticketNumber,
-        robuxAmount: ticket.robuxAmount,
-        reasonLabel: reasonMeta.label,
-        stock: updatedStock,
-      });
 
       await interaction.channel
         .send(
@@ -2088,7 +2183,12 @@ client.on('interactionCreate', async (interaction) => {
 
   // ==== Modal username Roblox dari dropdown produk "Robux" -> lookup +
   // tampilkan embed "Confirm Your Roblox Account" ====
-  if (interaction.isModalSubmit() && interaction.customId === STORE_USERNAME_MODAL_ID) {
+  if (
+    interaction.isModalSubmit() &&
+    (interaction.customId === STORE_USERNAME_MODAL_ID || interaction.customId.startsWith(`${STORE_USERNAME_MODAL_ID}:`))
+  ) {
+    // customId polos = Robux; `:skinrod` / `:royalpet` = produk Mount Mellow.
+    const product = interaction.customId.split(':')[1] || 'robux';
     const username = interaction.fields.getTextInputValue(STORE_USERNAME_INPUT_ID).trim();
     await interaction.deferReply({ ephemeral: true });
 
@@ -2104,7 +2204,16 @@ client.on('interactionCreate', async (interaction) => {
 
     let member;
     try {
-      member = await lookupMember(username);
+      if (product === 'robux') {
+        member = await lookupMember(username);
+      } else {
+        // Produk Mount Mellow dikirim in-game, jadi cukup pastikan akun Roblox-nya
+        // ada -- TIDAK wajib member komunitas & tidak ada syarat 14 hari
+        // (itu cuma aturan pembelian Robux).
+        const user = await getUserByUsername(username);
+        const avatarUrl = await getAvatarHeadshotUrl(user.id).catch(() => null);
+        member = { ...user, avatarUrl, joinedAt: null };
+      }
     } catch (error) {
       if (error instanceof RobloxApiError) {
         if (error.code === 'USER_NOT_FOUND') {
@@ -2137,6 +2246,7 @@ client.on('interactionCreate', async (interaction) => {
     }
 
     pendingRobuxFlow.set(robuxFlowKey(interaction.guildId, interaction.user.id), {
+      product,
       robloxUsername: member.username,
       robloxDisplayName: member.displayName,
       robloxUserId: member.id,
@@ -2185,7 +2295,7 @@ client.on('interactionCreate', async (interaction) => {
               buyerId: ticket.buyerId,
               buyerUsername: buyerUser?.username || null,
               adminHandlerId: ticket.adminHandlerId,
-              productLabel: `${robuxEmojiTag()} Robux (${ticket.robuxAmount})`,
+              productLabel: ticketProductLabel(ticket),
               price: ticket.price,
               rating,
               comment,
@@ -2226,6 +2336,24 @@ client.on('interactionCreate', async (interaction) => {
         content: '❌ Dibatalkan. Silakan pilih produk lagi di panel Store kalau mau order ulang.',
         embeds: [],
         components: [],
+      });
+      return;
+    }
+
+    // Produk Mount Mellow: tanpa cek eligibility/stock Robux.
+    if (pending.product === 'skinrod') {
+      await interaction.update({
+        embeds: [buildSkinRodPackageEmbed(pending)],
+        components: buildSkinRodPackageComponents(config.store.skinRodPackages),
+      });
+      return;
+    }
+
+    if (pending.product === 'royalpet') {
+      await finishStoreOrder(interaction, key, pending, {
+        product: 'royalpet',
+        itemLabel: 'Royal Pet',
+        price: config.store.royalPetPrice,
       });
       return;
     }
