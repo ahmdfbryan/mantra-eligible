@@ -65,6 +65,42 @@ function getStoreClosedReason() {
   return readAll().panel?.closedReason || null;
 }
 
+/**
+ * Daftar produk yang ditutup satuan (lewat /toko-tutup produk:...), terpisah
+ * dari status buka/tutup toko keseluruhan. Isinya id produk: 'robux',
+ * 'skinrod', 'royalpet'.
+ * @returns {string[]}
+ */
+function getClosedProducts() {
+  const list = readAll().panel?.closedProducts;
+  return Array.isArray(list) ? list : [];
+}
+
+/**
+ * Buka/tutup SATU produk saja. No-op kalau panel Store belum dipasang.
+ * @returns {string[]} daftar produk yang sekarang ditutup
+ */
+function setProductOpen(product, open) {
+  const data = readAll();
+  if (!data.panel) return [];
+  const current = new Set(Array.isArray(data.panel.closedProducts) ? data.panel.closedProducts : []);
+  if (open) current.delete(product);
+  else current.add(product);
+  data.panel.closedProducts = Array.from(current);
+  writeAll(data);
+  return data.panel.closedProducts;
+}
+
+/**
+ * Buka semua produk yang ditutup satuan (dipakai /toko-buka tanpa pilihan produk).
+ */
+function clearClosedProducts() {
+  const data = readAll();
+  if (!data.panel) return;
+  data.panel.closedProducts = [];
+  writeAll(data);
+}
+
 function getLeaderboardPanel() {
   return readAll().leaderboard;
 }
@@ -80,6 +116,9 @@ module.exports = {
   setStorePanel,
   setStoreOpen,
   getStoreClosedReason,
+  getClosedProducts,
+  setProductOpen,
+  clearClosedProducts,
   getLeaderboardPanel,
   setLeaderboardPanel,
 };
