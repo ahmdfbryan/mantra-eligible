@@ -152,11 +152,35 @@ const commands = [
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
   new SlashCommandBuilder()
     .setName('toko-buka')
-    .setDescription('Buka toko -- member bisa pilih produk di panel Store')
+    .setDescription('Buka toko (semua produk), atau buka satu produk saja')
+    .addStringOption((option) =>
+      option
+        .setName('produk')
+        .setDescription('Produk yang dibuka (kosongkan = buka semua)')
+        .addChoices(
+          { name: 'Semua produk', value: 'all' },
+          { name: 'Robux', value: 'robux' },
+          { name: 'Paket Skin Rod', value: 'skinrod' },
+          { name: 'Royal Pet', value: 'royalpet' }
+        )
+        .setRequired(false)
+    )
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
   new SlashCommandBuilder()
     .setName('toko-tutup')
-    .setDescription('Tutup toko -- dropdown produk di panel Store otomatis terkunci')
+    .setDescription('Tutup toko (semua produk), atau tutup satu produk saja')
+    .addStringOption((option) =>
+      option
+        .setName('produk')
+        .setDescription('Produk yang ditutup (kosongkan = tutup semua)')
+        .addChoices(
+          { name: 'Semua produk', value: 'all' },
+          { name: 'Robux', value: 'robux' },
+          { name: 'Paket Skin Rod', value: 'skinrod' },
+          { name: 'Royal Pet', value: 'royalpet' }
+        )
+        .setRequired(false)
+    )
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
   new SlashCommandBuilder()
     .setName('toko-leaderboard')
